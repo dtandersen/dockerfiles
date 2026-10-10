@@ -1,0 +1,47 @@
+# Builds forgejo-runner and pushes it to GHCR.
+#
+# Runs on pushes to main touching this image (or the workflow itself), plus
+# manual dispatch. The tag here must stay in lockstep with
+# statefulset.runner.fullOverride in the helmfile
+# releases/forgejo-runner-dind/values.yaml — bump both together.
+#
+# Auth uses the automatic GITHUB_TOKEN (no manual secrets). After the first
+# push, set the package to public (ghcr.io/dtandersen → forgejo-runner →
+# Package settings → Change visibility); the cluster pulls it anonymously.
+# A private package would need an imagePullSecret on the runner instead.
+
+name: build-forgejo-runner
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - forgejo-runner/**
+      - .github/workflows/build-forgejo-runner.yaml
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ghcr.io/dtandersen/forgejo-runner
+  TAG: "13.1.0"
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: forgejo-runner
+          push: true
+          tags: ${{ env.IMAGE }}:${{ env.TAG }}
