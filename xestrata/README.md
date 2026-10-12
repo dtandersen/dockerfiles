@@ -1,6 +1,8 @@
 # xestrata
 
-xestrata is a fork of strata specialized for Intel GPUs. It is made to run MoE models that are too large to fit in VRAM. It swaps the layers in and out of the GPU.
+[xestrata](https://github.com/MistVVK/XeStrata) is an Intel-first, but not Intel only, port of [strata](https://github.com/Niko1221/Strata). The GPU code was rewritten from CUDA to SYCL/Level Zero.
+
+It is made to run MoE models that are too large to fit in VRAM. The experts live in RAM and `xestrata` learns which ones are most used and swaps them into VRAM. It can also run the experts on the CPU.
 
 ## Volumes
 
