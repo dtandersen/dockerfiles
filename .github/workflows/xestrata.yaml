@@ -50,3 +50,7 @@ jobs:
           # image.tag and Chart.yaml appVersion must match this TAG.
           build-args: XESTRATA_REF=${{ env.TAG }}
           tags: ${{ env.IMAGE }}:${{ env.TAG }}
+          # Builder stages are unchanged by runtime-only edits, so a rebuild
+          # reuses them and only re-runs the runtime stage (minutes).
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -115,12 +115,18 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Runtime deps: Python for setup.py/serve, Debian's Python modules (same set
 # as requirements.txt where packaged), Level Zero loader. The Intel GPU
 # userspace below (26 series lists Battlemage/B70; distro packages are older).
+# libstdc++-14-dev: setup re-validates the prebuilt compiler at first start
+# (new_enough: clang++ -fsycl -dM -E over sycl.hpp), which needs the host C++
+# headers the builder got from g++. Re-check the number when bumping
+# DEBIAN_RELEASE. libblosc2-4: engine/strata links it (conversation
+# compression); setup only puts the compiler's lib dir on the library path.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl \
       python3 python3-venv \
       python3-numpy python3-jinja2 python3-regex python3-yaml python3-tqdm \
       python3-requests python3-pil python3-psutil \
       libze1 ocl-icd-libopencl1 \
+      libstdc++-14-dev libblosc2-4 \
     && rm -rf /var/lib/apt/lists/*
 
 # Intel Level Zero userspace, pinned 26 series (verified release assets;
@@ -146,7 +152,13 @@ COPY --from=builder /opt/xestrata /opt/xestrata
 RUN rm -rf /opt/xestrata/.git /opt/xestrata/bench \
       /opt/xestrata/.tools/intel-llvm/src \
     && test -x /opt/xestrata/engine/strata \
-    && test -f /opt/xestrata/engine/BUILD.json
+    && test -f /opt/xestrata/engine/BUILD.json \
+    && echo '#include <sycl/sycl.hpp>' \
+         | /opt/xestrata/.tools/intel-llvm/install/bin/clang++ \
+             -fsycl -dM -E -x c++ - 2>/dev/null \
+         | grep -q '__LIBSYCL_MAJOR_VERSION 9' \
+    && LD_LIBRARY_PATH=/opt/xestrata/.tools/intel-llvm/install/lib \
+       ldd /opt/xestrata/engine/strata | grep -qv 'not found'
 
 # `xestrata` command, same shape as the deb's xestrata.in wrapper (setup.py
 # for everything, chat.py for `xestrata chat`), against the tree's own venv.
