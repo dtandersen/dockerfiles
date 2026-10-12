@@ -1,35 +1,33 @@
-# Builds xestrata and pushes it to GHCR.
+# Builds forgejo-runner and pushes it to GHCR.
 #
 # Runs on pushes to main touching this image (or the workflow itself), plus
 # manual dispatch. The tag here must stay in lockstep with
-# image.tag in the charts repo charts/xestrata/values.yaml and
-# appVersion in charts/xestrata/Chart.yaml — bump all three together.
+# statefulset.runner.fullOverride in the helmfile
+# releases/forgejo-runner-dind/values.yaml — bump both together.
 #
 # Auth uses the automatic GITHUB_TOKEN (no manual secrets). After the first
-# push, set the package to public (ghcr.io/dtandersen → xestrata →
+# push, set the package to public (ghcr.io/dtandersen → forgejo-runner →
 # Package settings → Change visibility); the cluster pulls it anonymously.
-# A private package would need an imagePullSecret on the workload instead.
+# A private package would need an imagePullSecret on the runner instead.
 
-name: build-xestrata
+name: build-forgejo-runner
 
 on:
   push:
     branches: [main]
     paths:
-      - xestrata/**
-      - .github/workflows/build-xestrata.yaml
+      - forgejo-runner/**
+      - .github/workflows/forgejo-runner.yaml
   workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE: ghcr.io/dtandersen/xestrata
-  TAG: "xe0.1.43.1"
+  IMAGE: ghcr.io/dtandersen/forgejo-runner
+  TAG: "13.1.0"
 
 jobs:
   build-push:
     runs-on: ubuntu-latest
-    # intel/llvm + engine from source take a long time on a small runner.
-    timeout-minutes: 300
     permissions:
       contents: read
       packages: write
@@ -44,9 +42,6 @@ jobs:
 
       - uses: docker/build-push-action@v6
         with:
-          context: xestrata
+          context: forgejo-runner
           push: true
-          # Single source of truth for the XeStrata version; the chart's
-          # image.tag and Chart.yaml appVersion must match this TAG.
-          build-args: XESTRATA_REF=${{ env.TAG }}
           tags: ${{ env.IMAGE }}:${{ env.TAG }}
