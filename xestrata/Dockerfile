@@ -120,13 +120,15 @@ ENV DEBIAN_FRONTEND=noninteractive
 # headers the builder got from g++. Re-check the number when bumping
 # DEBIAN_RELEASE. libblosc2-4: engine/strata links it (conversation
 # compression); setup only puts the compiler's lib dir on the library path.
+# binutils: setup's XMX probe compiles AND links tools/xmx_probe.cpp live at
+# first start; without ld the link fails and the probe reads as "no XMX".
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl \
       python3 python3-venv \
       python3-numpy python3-jinja2 python3-regex python3-yaml python3-tqdm \
       python3-requests python3-pil python3-psutil \
       libze1 ocl-icd-libopencl1 \
-      libstdc++-14-dev libblosc2-4 \
+      libstdc++-14-dev libblosc2-4 binutils \
     && rm -rf /var/lib/apt/lists/*
 
 # Intel Level Zero userspace, pinned 26 series (verified release assets;
@@ -157,6 +159,8 @@ RUN rm -rf /opt/xestrata/.git /opt/xestrata/bench \
          | /opt/xestrata/.tools/intel-llvm/install/bin/clang++ \
              -fsycl -dM -E -x c++ - \
          | grep -q '__LIBSYCL_MAJOR_VERSION 9' \
+    && /opt/xestrata/.tools/intel-llvm/install/bin/clang++ \
+         -fsycl /opt/xestrata/tools/xmx_probe.cpp -o /tmp/xmx_probe \
     && ! (LD_LIBRARY_PATH=/opt/xestrata/.tools/intel-llvm/install/lib \
        ldd /opt/xestrata/engine/strata | grep -q 'not found')
 
