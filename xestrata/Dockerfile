@@ -157,8 +157,8 @@ RUN rm -rf /opt/xestrata/.git /opt/xestrata/bench \
          | /opt/xestrata/.tools/intel-llvm/install/bin/clang++ \
              -fsycl -dM -E -x c++ - 2>/dev/null \
          | grep -q '__LIBSYCL_MAJOR_VERSION 9' \
-    && LD_LIBRARY_PATH=/opt/xestrata/.tools/intel-llvm/install/lib \
-       ldd /opt/xestrata/engine/strata | grep -qv 'not found'
+    && ! (LD_LIBRARY_PATH=/opt/xestrata/.tools/intel-llvm/install/lib \
+       ldd /opt/xestrata/engine/strata | grep -q 'not found')
 
 # `xestrata` command, same shape as the deb's xestrata.in wrapper (setup.py
 # for everything, chat.py for `xestrata chat`), against the tree's own venv.
