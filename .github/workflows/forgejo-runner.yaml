@@ -1,7 +1,8 @@
 # Builds forgejo-runner and pushes it to GHCR.
 #
-# Runs on pushes to main touching this image (or the workflow itself), plus
-# manual dispatch. The tag here must stay in lockstep with
+# The image tag follows the push: branch name for branches (main), tag name
+# for tags. Push a version tag like 13.1.0 to release that runner version —
+# the tag doubles as RUNNER_VERSION. It must stay in lockstep with
 # statefulset.runner.fullOverride in the helmfile
 # releases/forgejo-runner-dind/values.yaml — bump both together.
 #
@@ -15,6 +16,7 @@ name: forgejo-runner
 on:
   push:
     branches: [main]
+    tags: ['[0-9]*']
     paths:
       - forgejo-runner/**
       - .github/workflows/forgejo-runner.yaml
@@ -23,7 +25,9 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE: ghcr.io/dtandersen/forgejo-runner
-  TAG: "13.1.0"
+  # Upstream runner version for branch builds. Tag pushes override this
+  # with the tag name (see set-ref step).
+  RUNNER_VERSION: "13.1.0"
 
 jobs:
   build-push:
@@ -33,6 +37,22 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+
+      # Version tags (13.1.0) build that runner version.
+      - name: Set ref
+        run: echo "RUNNER_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+        if: startsWith(github.ref, 'refs/tags/')
+
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            # Fallback so manual dispatches (neither branch nor tag ref)
+            # still produce a tag.
+            type=sha
 
       - uses: docker/login-action@v3
         with:
@@ -44,4 +64,6 @@ jobs:
         with:
           context: forgejo-runner
           push: true
-          tags: ${{ env.IMAGE }}:${{ env.TAG }}
+          build-args: RUNNER_VERSION=${{ env.RUNNER_VERSION }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

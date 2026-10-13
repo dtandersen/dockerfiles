@@ -11,5 +11,6 @@
 #   docker push ghcr.io/dtandersen/forgejo-runner:<tag>
 # then point statefulset.runner.fullOverride in the helmfile
 # releases/forgejo-runner-dind/values.yaml at the new tag.
-FROM data.forgejo.org/forgejo/runner:13.1.0
+ARG RUNNER_VERSION=13.1.0
+FROM data.forgejo.org/forgejo/runner:${RUNNER_VERSION}
 CMD ["/bin/forgejo-runner", "--config", "/runner/config.yaml", "daemon"]
