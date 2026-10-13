@@ -155,7 +155,7 @@ RUN rm -rf /opt/xestrata/.git /opt/xestrata/bench \
     && test -f /opt/xestrata/engine/BUILD.json \
     && echo '#include <sycl/sycl.hpp>' \
          | /opt/xestrata/.tools/intel-llvm/install/bin/clang++ \
-             -fsycl -dM -E -x c++ - 2>/dev/null \
+             -fsycl -dM -E -x c++ - \
          | grep -q '__LIBSYCL_MAJOR_VERSION 9' \
     && ! (LD_LIBRARY_PATH=/opt/xestrata/.tools/intel-llvm/install/lib \
        ldd /opt/xestrata/engine/strata | grep -q 'not found')
