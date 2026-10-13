@@ -29,27 +29,35 @@
 ARG DEBIAN_RELEASE=trixie-slim
 # Upstream git tag (release name, e.g. xe0.1.43.1).
 ARG XESTRATA_REF=xe0.1.43.1
+# Source repository (override to build a fork/branch, e.g. a fix branch).
+ARG XESTRATA_REPO=https://github.com/MistVVK/XeStrata.git
 # intel/llvm build parallelism (default: all builder CPUs).
 ARG XESTRATA_JOBS=""
 
 # ---------------------------------------------------------------- builder
 FROM debian:${DEBIAN_RELEASE} AS builder
+ARG XESTRATA_REPO
 ARG XESTRATA_REF
 ARG XESTRATA_JOBS
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Build tools, the free-mode package rows from docs/BUILD.md (no ROCm: no AMD
 # code; no oneAPI/CUDA: free license), plus unzip for the llama.cpp archive.
+# ccache: shared compiler cache across rebuilds (same trick as upstream's
+# tools/package, 30G like theirs); needs BuildKit (`docker buildx`).
+# Size is a build arg so CI (10 GB GHA cache cap) can set it lower.
+ARG CCACHE_MAXSIZE=30G
+ENV CCACHE_DIR=/var/cache/ccache CCACHE_MAXSIZE=${CCACHE_MAXSIZE}
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl git unzip \
-      cmake ninja-build g++ lld pkg-config patchelf \
+      cmake ninja-build g++ lld pkg-config patchelf ccache \
       python3 python3-venv \
       libhwloc-dev libzstd-dev libblosc2-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Upstream source at the pinned tag.
 RUN git clone --depth 1 --branch "${XESTRATA_REF}" \
-      https://github.com/MistVVK/XeStrata.git /opt/xestrata
+      "${XESTRATA_REPO}" /opt/xestrata
 WORKDIR /opt/xestrata
 
 # llama.cpp at the commit setup.py pins (ggml for the engine). Same download
@@ -64,7 +72,11 @@ RUN commit=$(sed -n 's/^LLAMA_CPP_COMMIT = "\([0-9a-f]*\)"$/\1/p' setup.py) \
 # intel/llvm DPC++ 7+, free mode (no --contrib: no CUDA target, no oneMKL).
 # Without ROCm HIP installed it skips the HIP target on its own (Intel-only).
 # Installs into .tools/intel-llvm/install inside the tree (see header note).
-RUN python3 tools/intel_llvm_build.py --yes --jobs "${XESTRATA_JOBS:-$(nproc)}"
+# The cache mount keeps ccache warm between rebuilds (LLVM objects are reused
+# when only the engine or the XeStrata source changes).
+RUN --mount=type=cache,target=/var/cache/ccache \
+    export CMAKE_C_COMPILER_LAUNCHER=ccache CMAKE_CXX_COMPILER_LAUNCHER=ccache \
+    && python3 tools/intel_llvm_build.py --yes --jobs "${XESTRATA_JOBS:-$(nproc)}"
 
 # Python env now, so the pod never pip-installs at start (setup.py skips its
 # pip step when requirements.txt is already satisfied in .venv).
@@ -74,8 +86,10 @@ RUN python3 -m venv .venv \
 # The engine, Intel-only. Same flags setup.py passes a free build with no
 # AMD/NVIDIA GPUs (build_engine), run directly because setup.py would stop
 # here without a GPU for its XMX probe.
-RUN cmake -G Ninja -S /opt/xestrata -B /build/engine \
+RUN --mount=type=cache,target=/var/cache/ccache \
+    cmake -G Ninja -S /opt/xestrata -B /build/engine \
       -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
       -DCMAKE_CXX_COMPILER=/opt/xestrata/.tools/intel-llvm/install/bin/clang++ \
       -DCMAKE_C_COMPILER=/opt/xestrata/.tools/intel-llvm/install/bin/clang \
       -DSTRATA_LICENSE=free \
@@ -122,13 +136,17 @@ ENV DEBIAN_FRONTEND=noninteractive
 # compression); setup only puts the compiler's lib dir on the library path.
 # binutils: setup's XMX probe compiles AND links tools/xmx_probe.cpp live at
 # first start; without ld the link fails and the probe reads as "no XMX".
+# libhwloc15: the SYCL runtime dlopens the Level Zero/OpenCL adapters at
+# first start, and they link libhwloc — without it sycl-ls finds no GPU.
+# (dlopen deps don't show in `ldd engine/strata`, so the smoke test below
+# can't catch this; re-check the package name when bumping DEBIAN_RELEASE.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl \
       python3 python3-venv \
       python3-numpy python3-jinja2 python3-regex python3-yaml python3-tqdm \
       python3-requests python3-pil python3-psutil \
       libze1 ocl-icd-libopencl1 \
-      libstdc++-14-dev libblosc2-4 binutils \
+      libstdc++-14-dev libblosc2-4 binutils libhwloc15 \
     && rm -rf /var/lib/apt/lists/*
 
 # Intel Level Zero userspace, pinned 26 series (verified release assets;

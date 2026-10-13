@@ -1,0 +1,2 @@
+# Local upstream checkout for reference; never part of the build context.
+XeStrata/

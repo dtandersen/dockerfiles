@@ -44,3 +44,29 @@ docker run -d --name xestrata --device /dev/dri \
 First start downloads the model (~84 GB) into the data volume, then
 serves it. Chat at http://localhost:8095, or point any OpenAI-compatible
 app at http://localhost:8095/v1.
+
+## Building
+
+```sh
+docker buildx build ./xestrata -t xestrata:local \
+  --build-arg XESTRATA_REF=xe0.1.43.1 \
+  --build-arg XESTRATA_JOBS=16
+```
+
+Build args:
+
+- XESTRATA_REF - upstream git tag to build (default xe0.1.43.1).
+  Tag pushes to this repo build that version instead.
+- XESTRATA_REPO - source repository (default upstream). Point at a fork
+  to build a fix branch, e.g. `--build-arg XESTRATA_REPO=https://github.com/you/XeStrata.git`
+  with `--build-arg XESTRATA_REF=my-fix`.
+- XESTRATA_JOBS - build parallelism (default: all CPUs).
+- CCACHE_MAXSIZE - compiler cache size (default 30G, like upstream's
+  deb builds). Lower it where cache storage is capped, e.g.
+  `--build-arg CCACHE_MAXSIZE=8G` for GitHub Actions (10 GB cache limit).
+- DEBIAN_RELEASE - base image release (default trixie-slim).
+
+Caching: intel/llvm and engine objects are shared between rebuilds via
+ccache in a BuildKit cache mount — automatic with `buildx`, nothing to
+pass. The GitHub workflow exports it with `type=gha,mode=max`, so CI
+rebuilds reuse it too (within the 10 GB cap).
