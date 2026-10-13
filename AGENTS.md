@@ -9,3 +9,5 @@ The [GitHub workflows](.github/workflows) automatically build a Dockerfile and p
 Ask the human to review changes before comitting.
 
 Scan files with `gitleaks` before comitting.
+
+Run a build check before comitting, e.g., `docker build --check ./xestrata`.
