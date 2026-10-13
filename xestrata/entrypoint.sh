@@ -11,6 +11,8 @@ MODEL="${XESTRATA_MODEL:-IQ2_XS}"
 FAMILY="${XESTRATA_FAMILY:-}"
 CONTEXT="${XESTRATA_CONTEXT:-32768}"
 VISION="${XESTRATA_VISION:-no}"
+LICENSE="${XESTRATA_LICENSE:-free}"
+INTEL_LLVM="${XESTRATA_INTEL_LLVM:-/opt/xestrata/.tools/intel-llvm/install}"
 
 export XDG_CONFIG_HOME="${CONFIG_DIR}"
 export XDG_DATA_HOME="${DATA_DIR}"
@@ -20,7 +22,7 @@ mkdir -p "${DATA_DIR}" "${CONFIG_DIR}"
 # First start: fetch the model (60-110 GB) and write the server config.
 # Settings land under ${CONFIG_DIR}/xestrata, models under ${DATA_DIR}.
 if [ ! -f "${CONFIG_DIR}/xestrata/settings.json" ]; then
-  SETUP_ARGS="--setup --data-dir ${DATA_DIR} --model ${MODEL} --context ${CONTEXT} --vision ${VISION} --port ${PORT} --yes"
+  SETUP_ARGS="--setup --data-dir ${DATA_DIR} --model ${MODEL} --license ${LICENSE} --intel-llvm ${INTEL_LLVM} --context ${CONTEXT} --vision ${VISION} --port ${PORT} --yes"
   if [ -n "${FAMILY}" ]; then
     # shellcheck disable=SC2086
     xestrata ${SETUP_ARGS} --family "${FAMILY}"

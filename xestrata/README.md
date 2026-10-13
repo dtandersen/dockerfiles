@@ -18,6 +18,14 @@ Set the model name, e.g. `XESTRATA_MODEL=IQ3_S`, and it downloads `ISTA-DASLab/Q
 
 `XESTRATA_FAMILY=qwen` is set by default for the Qwen 3.8 Flash Next family of models.
 
+## Settings
+
+Everything is an environment variable. Defaults work out of the box.
+
+- XESTRATA_MODEL - which model to download (default IQ2_XS)
+- XESTRATA_LICENSE - build mode matching the image (default free)
+- XESTRATA_INTEL_LLVM - compiler path baked into the image (default /opt/xestrata/.tools/intel-llvm/install)
+
 ## Ports
 
 The `xestrata` OpenAI compatible endpoint is on port 8095.
