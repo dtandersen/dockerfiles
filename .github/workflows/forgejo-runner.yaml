@@ -10,7 +10,7 @@
 # Package settings → Change visibility); the cluster pulls it anonymously.
 # A private package would need an imagePullSecret on the runner instead.
 
-name: build-forgejo-runner
+name: forgejo-runner
 
 on:
   push:
