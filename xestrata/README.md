@@ -28,6 +28,10 @@ Everything is an environment variable. Defaults work out of the box.
 - STRATA_NO_BLAS - use the engine's own GEMM kernels instead of oneMath
   (default 1, baked into the image; `-e STRATA_NO_BLAS=0` retries oneMKL
   on Intel or cuBLAS on NVIDIA)
+- XESTRATA_LOW_RAM - force setup's low-RAM mode (experts from NVMe via
+  the page cache instead of all in RAM): auto|on|off|resident|mmap.
+  Default unset = auto (host-RAM based; blind to a container memory cap,
+  so set `mmap` explicitly when capping RAM below what the model wants)
 - XESTRATA_POOL_WORKERS - CPU threads computing experts (`--pool-workers N`
   in the model config; default unset = engine default, which calibration
   measured optimal — set only for A/B tests, e.g. `-e XESTRATA_POOL_WORKERS=6`)
