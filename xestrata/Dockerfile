@@ -57,6 +57,11 @@ ARG XESTRATA_REF=xe0.1.43.1
 ARG XESTRATA_REPO=https://github.com/MistVVK/XeStrata.git
 # intel/llvm build parallelism (default: all builder CPUs).
 ARG XESTRATA_JOBS=""
+# intel/llvm release to build (tools/intel_llvm_build.py --tag). Must be 7
+# or later (the engine needs libsycl 9); BUILD.md validates v7.1.1, which
+# is also what upstream's script pins. Other tags may not take upstream's
+# patches (the build script then fails loudly).
+ARG XESTRATA_LLVM_TAG="v7.1.1"
 # NVIDIA architectures for the cuBLAS backend and device code (contrib).
 # Upstream's CUDA 12.4 set from tools/package/container.sh; trim for a
 # single generation, e.g. --build-arg XESTRATA_CUDA_ARCHS=sm_89.
@@ -67,6 +72,7 @@ FROM ubuntu:${UBUNTU_RELEASE} AS builder
 ARG XESTRATA_REPO
 ARG XESTRATA_REF
 ARG XESTRATA_JOBS
+ARG XESTRATA_LLVM_TAG
 ARG XESTRATA_CUDA_ARCHS
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -117,19 +123,19 @@ RUN commit=$(sed -n 's/^LLAMA_CPP_COMMIT = "\([0-9a-f]*\)"$/\1/p' setup.py) \
 RUN command -v nvcc && nvcc --version \
     && test -n "$(ls /usr/lib/cuda/nvvm/libdevice/libdevice*.bc 2>/dev/null)"
 
-# intel/llvm DPC++ 7.1.1 (the release tools/intel_llvm_build.py pins) with
+# intel/llvm DPC++ (tools/intel_llvm_build.py --tag, default v7.1.1) with
 # its CUDA target (--contrib: NVIDIA GPUs; needs the toolkit above).
 # Without ROCm HIP installed it skips the HIP target on its own (no AMD code).
 # Installs into .tools/intel-llvm-contrib/install inside the tree (see header
-# note). The XESTRATA.json check pins the validated v7.1.1; the adapter check
+# note). The XESTRATA.json check pins the built tag; the adapter check
 # proves the CUDA target was actually built (setup.py refuses a toolchain
 # without it on NVIDIA hosts).
 # The cache mount keeps ccache warm between rebuilds (LLVM objects are reused
 # when only the engine or the XeStrata source changes).
 RUN --mount=type=cache,target=/var/cache/ccache \
     export CMAKE_C_COMPILER_LAUNCHER=ccache CMAKE_CXX_COMPILER_LAUNCHER=ccache \
-    && python3 tools/intel_llvm_build.py --contrib --yes --jobs "${XESTRATA_JOBS:-$(nproc)}" \
-    && grep -q '"tag": "v7.1.1"' /opt/xestrata/.tools/intel-llvm-contrib/install/XESTRATA.json \
+    && python3 tools/intel_llvm_build.py --contrib --yes --tag "${XESTRATA_LLVM_TAG}" --jobs "${XESTRATA_JOBS:-$(nproc)}" \
+    && grep -q "\"tag\": \"${XESTRATA_LLVM_TAG}\"" /opt/xestrata/.tools/intel-llvm-contrib/install/XESTRATA.json \
     && test -n "$(ls /opt/xestrata/.tools/intel-llvm-contrib/install/lib/libur_adapter_cuda.so* 2>/dev/null)"
 
 # Python env now, so the pod never pip-installs at start (setup.py skips its
