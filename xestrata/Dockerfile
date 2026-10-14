@@ -132,8 +132,14 @@ RUN command -v nvcc && nvcc --version \
 # without it on NVIDIA hosts).
 # The cache mount keeps ccache warm between rebuilds (LLVM objects are reused
 # when only the engine or the XeStrata source changes).
+# CXXFLAGS/CFLAGS=-w: this host compiler (GCC 15) floods intel/llvm 7.1.1
+# with -Wdeprecated-declarations and friends, repeated per translation unit
+# until CI log limits cut logging off (and hide real errors). -w drops
+# warnings only, errors still fail loudly; CMake seeds CMAKE_CXX_FLAGS from
+# the environment on first configure (buildbot sets no CXX_FLAGS itself).
 RUN --mount=type=cache,target=/var/cache/ccache \
     export CMAKE_C_COMPILER_LAUNCHER=ccache CMAKE_CXX_COMPILER_LAUNCHER=ccache \
+      CXXFLAGS="-w" CFLAGS="-w" \
     && python3 tools/intel_llvm_build.py --contrib --yes --tag "${XESTRATA_LLVM_TAG}" --jobs "${XESTRATA_JOBS:-$(nproc)}" \
     && grep -q "\"tag\": \"${XESTRATA_LLVM_TAG}\"" /opt/xestrata/.tools/intel-llvm-contrib/install/XESTRATA.json \
     && test -n "$(ls /opt/xestrata/.tools/intel-llvm-contrib/install/lib/libur_adapter_cuda.so* 2>/dev/null)"
