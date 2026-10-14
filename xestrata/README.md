@@ -23,8 +23,14 @@ Set the model name, e.g. `XESTRATA_MODEL=IQ3_S`, and it downloads `ISTA-DASLab/Q
 Everything is an environment variable. Defaults work out of the box.
 
 - XESTRATA_MODEL - which model to download (default IQ2_XS)
-- XESTRATA_LICENSE - build mode matching the image (default contrib)
-- XESTRATA_INTEL_LLVM - compiler path baked into the image (default /opt/xestrata/.tools/intel-llvm-contrib/install)
+- XESTRATA_CONTEXT - context length in tokens (default 32768)
+- XESTRATA_API_KEY - require this API key (default unset = open port)
+- STRATA_NO_BLAS - use the engine's own GEMM kernels instead of oneMath
+  (default 1, baked into the image; `-e STRATA_NO_BLAS=0` retries oneMKL
+  on Intel or cuBLAS on NVIDIA)
+- XESTRATA_POOL_WORKERS - CPU threads computing experts (`--pool-workers N`
+  in the model config; default unset = engine default, which calibration
+  measured optimal — set only for A/B tests, e.g. `-e XESTRATA_POOL_WORKERS=6`)
 
 ## Ports
 
@@ -75,6 +81,8 @@ Build args:
   to build a fix branch, e.g. `--build-arg XESTRATA_REPO=https://github.com/you/XeStrata.git`
   with `--build-arg XESTRATA_REF=my-fix`.
 - XESTRATA_JOBS - build parallelism (default: all CPUs).
+- XESTRATA_LLVM_TAG - intel/llvm release to build (default v7.1.1,
+  the validated one; must be 7+ for libsycl 9).
 - XESTRATA_CUDA_ARCHS - NVIDIA architectures for device code and cuBLAS
   (default sm_60;sm_61;sm_70;sm_75;sm_80;sm_86;sm_89;sm_90, upstream's
   CUDA 12.4 set). Trim for one generation, e.g.
