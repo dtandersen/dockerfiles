@@ -311,6 +311,15 @@ ENV DEBIAN_FRONTEND=noninteractive
 # retry oneMKL on Intel or for cuBLAS on NVIDIA hosts.
 ENV STRATA_NO_BLAS=1
 
+# Exact (non-approximate) expert routing in verify windows: the engine
+# segfaulted in MTP suffix-draft verification (last line "suffix drafts:
+# 12 windows, 49 of 60 drafts accepted", 2026-10-14) while verify-window
+# captures ran with only ~150-480 MiB of VRAM free on a 42k-token fresh
+# prefill. Tail-skip skips missed experts inside those windows; disabling
+# it keeps --spec on at the cost of a few % decode. Pass
+# -e STRATA_ROUTE_TAIL_SKIP=7 to re-enable upstream's default.
+ENV STRATA_ROUTE_TAIL_SKIP=0
+
 # Runtime deps: Python for setup.py/serve, Ubuntu's Python modules (same set
 # as requirements.txt where packaged), Level Zero loader and the OpenCL
 # headers. ocl-icd-opencl-dev: every `-fsycl` compile needs CL/cl.h
