@@ -35,6 +35,21 @@ Everything is an environment variable. Defaults work out of the box.
 - XESTRATA_POOL_WORKERS - CPU threads computing experts (`--pool-workers N`
   in the model config; default unset = engine default, which calibration
   measured optimal — set only for A/B tests, e.g. `-e XESTRATA_POOL_WORKERS=6`)
+- XESTRATA_VRAM_RESERVE - MiB of VRAM the engine leaves free
+  (`--vram-reserve-mib N` in the model config; the expert cache takes that
+  much less). Default unset = 700. Raise for verify-window headroom on
+  tight cards, e.g. `-e XESTRATA_VRAM_RESERVE=2048`
+- XESTRATA_PARALLEL - up to N requests decode together (`"parallel": N`
+  in the model config; default unset = one at a time, the others wait,
+  `1` = explicitly sequential). Each slot costs ~0.6 GB of VRAM from the
+  expert cache at 32k int8 (more at larger contexts); where experts mostly
+  run from CPU each request also gets 10-25% slower. Qwen models only
+- STRATA_ROUTE_TAIL_SKIP - skip missed experts inside verify windows
+  (default 0, baked into the image; upstream default 7). The engine
+  segfaulted in MTP suffix-draft verification with tail-skip on while
+  verify captures ran with only ~150-480 MiB VRAM free — exact routing
+  keeps `--spec` on at the cost of a few % decode. Pass
+  `-e STRATA_ROUTE_TAIL_SKIP=7` to re-enable upstream's default
 
 ## Ports
 

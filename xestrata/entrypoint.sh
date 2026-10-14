@@ -41,30 +41,71 @@ if [ ! -f "${CONFIG_DIR}/xestrata/settings.json" ]; then
   fi
 fi
 
-# Optional engine tuning: XESTRATA_POOL_WORKERS sets --pool-workers N
-# (CPU threads computing experts) in every installed model config.
-# setup.py has no flag for it, so it is patched here after setup and
-# before serve, on every start. Unset = engine default (calibration
-# already measured it optimal on this PC; use only for A/B tests).
+# Optional engine tuning, patched into every installed model config after
+# setup and before serve, on every start (setup.py has no persistent flags
+# for these, so env is the only post-install lever):
+# - XESTRATA_VRAM_RESERVE=N: --vram-reserve-mib N (MiB of VRAM the engine
+#   leaves free; the expert cache takes that much less). Unset = 700.
+#   Raise for verify-window headroom on tight cards (e.g. 2048).
+# - XESTRATA_PARALLEL=N: "parallel": N (concurrent decodes, 2+; 1 removes
+#   the key = explicitly sequential). Unset = sequential. Each slot costs
+#   ~0.6 GB of VRAM from the expert cache at 32k int8 (more at larger
+#   contexts); where experts mostly run from CPU each request also gets
+#   10-25% slower (docs/BATCHING.md).
+# - XESTRATA_POOL_WORKERS=N: --pool-workers N (CPU threads computing
+#   experts). Unset = engine default (calibration already measured it
+#   optimal; use only for A/B tests).
+# Qwen models only; others warn and ignore the flags.
+if [ -n "${XESTRATA_VRAM_RESERVE:-}" ]; then
+  if ! [ "${XESTRATA_VRAM_RESERVE}" -eq "${XESTRATA_VRAM_RESERVE}" ] 2>/dev/null || [ "${XESTRATA_VRAM_RESERVE}" -lt 0 ]; then
+    echo "XESTRATA_VRAM_RESERVE must be MiB, 0 or more, got '${XESTRATA_VRAM_RESERVE}'" >&2
+    exit 1
+  fi
+fi
+if [ -n "${XESTRATA_PARALLEL:-}" ]; then
+  if ! [ "${XESTRATA_PARALLEL}" -eq "${XESTRATA_PARALLEL}" ] 2>/dev/null || [ "${XESTRATA_PARALLEL}" -lt 1 ]; then
+    echo "XESTRATA_PARALLEL must be a positive number, got '${XESTRATA_PARALLEL}'" >&2
+    exit 1
+  fi
+fi
 if [ -n "${XESTRATA_POOL_WORKERS:-}" ]; then
   if ! [ "${XESTRATA_POOL_WORKERS}" -eq "${XESTRATA_POOL_WORKERS}" ] 2>/dev/null; then
     echo "XESTRATA_POOL_WORKERS must be a number, got '${XESTRATA_POOL_WORKERS}'" >&2
     exit 1
   fi
+fi
+if [ -n "${XESTRATA_VRAM_RESERVE:-}${XESTRATA_PARALLEL:-}${XESTRATA_POOL_WORKERS:-}" ]; then
   for cfg in /opt/xestrata/xestrata-*.json; do
     [ -f "$cfg" ] || continue
-    /usr/bin/python3 - "$cfg" "${XESTRATA_POOL_WORKERS}" <<'EOF'
-import json, sys
-p, n = sys.argv[1], sys.argv[2]
+    XESTRATA_VRAM_RESERVE="${XESTRATA_VRAM_RESERVE:-}" \
+    XESTRATA_PARALLEL="${XESTRATA_PARALLEL:-}" \
+    XESTRATA_POOL_WORKERS="${XESTRATA_POOL_WORKERS:-}" \
+    /usr/bin/python3 - "$cfg" <<'EOF'
+import json, os, sys
+p = sys.argv[1]
 cfg = json.load(open(p, encoding="utf-8-sig"))
 args = cfg.get("args", [])
-if "--pool-workers" in args:
-    args[args.index("--pool-workers") + 1] = n
-else:
-    args += ["--pool-workers", n]
+
+def set_arg(lst, flag, value):
+    if flag in lst:
+        lst[lst.index(flag) + 1] = value
+    else:
+        lst.append(flag)
+        lst.append(value)
+
+if os.environ["XESTRATA_VRAM_RESERVE"]:
+    set_arg(args, "--vram-reserve-mib", os.environ["XESTRATA_VRAM_RESERVE"])
+if os.environ["XESTRATA_PARALLEL"]:
+    n = int(os.environ["XESTRATA_PARALLEL"])
+    if n >= 2:
+        cfg["parallel"] = n
+    else:
+        cfg.pop("parallel", None)
+if os.environ["XESTRATA_POOL_WORKERS"]:
+    set_arg(args, "--pool-workers", os.environ["XESTRATA_POOL_WORKERS"])
 cfg["args"] = args
 json.dump(cfg, open(p, "w", encoding="utf-8"), indent=1)
-print(f"pool-workers {n} in {p}")
+print(f"tuned {p}")
 EOF
   done
 fi
