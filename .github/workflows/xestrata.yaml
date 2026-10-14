@@ -15,7 +15,7 @@ name: xestrata
 
 on:
   push:
-    branches: [main]
+    branches: ['**']
     tags: ['[0-9]*']
     paths:
       - xestrata/**
@@ -71,7 +71,11 @@ jobs:
         with:
           context: xestrata
           push: true
-          build-args: XESTRATA_REF=${{ env.XESTRATA_REF }}
+          # 8G: the GHA cache backend caps at 10 GB; the Dockerfile
+          # default (30G, like upstream's deb builds) is for local builds.
+          build-args: |
+            XESTRATA_REF=${{ env.XESTRATA_REF }}
+            CCACHE_MAXSIZE=8G
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           # Builder stages are unchanged by runtime-only edits, so a rebuild
