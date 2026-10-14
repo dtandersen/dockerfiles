@@ -23,8 +23,8 @@ Set the model name, e.g. `XESTRATA_MODEL=IQ3_S`, and it downloads `ISTA-DASLab/Q
 Everything is an environment variable. Defaults work out of the box.
 
 - XESTRATA_MODEL - which model to download (default IQ2_XS)
-- XESTRATA_LICENSE - build mode matching the image (default free)
-- XESTRATA_INTEL_LLVM - compiler path baked into the image (default /opt/xestrata/.tools/intel-llvm/install)
+- XESTRATA_LICENSE - build mode matching the image (default contrib)
+- XESTRATA_INTEL_LLVM - compiler path baked into the image (default /opt/xestrata/.tools/intel-llvm-contrib/install)
 
 ## Ports
 
@@ -40,6 +40,20 @@ docker run -d --name xestrata --device /dev/dri \
   -e XESTRATA_MODEL=IQ3_S \
   ghcr.io/dtandersen/xestrata:xe0.1.43.1
 ```
+
+On a host with an AMD GPU next to the Intel one, also hide its KFD
+compute topology or setup demands ROCm and stops:
+
+```sh
+mkdir -p /tmp/empty-kfd
+# ... add to the run above:
+# -v /tmp/empty-kfd:/sys/class/kfd:ro
+```
+
+The image defaults to its own GEMM kernels (`STRATA_NO_BLAS=1`, baked
+in): oneMath's oneMKL backend segfaults on this stack (intel/llvm
+7.1.1's UR Level Zero v2 adapter). Pass `-e STRATA_NO_BLAS=0` to retry
+oneMKL on Intel or for cuBLAS on NVIDIA hosts.
 
 First start downloads the model (~84 GB) into the data volume, then
 serves it. Chat at http://localhost:8095, or point any OpenAI-compatible
@@ -61,10 +75,14 @@ Build args:
   to build a fix branch, e.g. `--build-arg XESTRATA_REPO=https://github.com/you/XeStrata.git`
   with `--build-arg XESTRATA_REF=my-fix`.
 - XESTRATA_JOBS - build parallelism (default: all CPUs).
+- XESTRATA_CUDA_ARCHS - NVIDIA architectures for device code and cuBLAS
+  (default sm_60;sm_61;sm_70;sm_75;sm_80;sm_86;sm_89;sm_90, upstream's
+  CUDA 12.4 set). Trim for one generation, e.g.
+  `--build-arg XESTRATA_CUDA_ARCHS=sm_89`.
 - CCACHE_MAXSIZE - compiler cache size (default 30G, like upstream's
   deb builds). Lower it where cache storage is capped, e.g.
   `--build-arg CCACHE_MAXSIZE=8G` for GitHub Actions (10 GB cache limit).
-- DEBIAN_RELEASE - base image release (default trixie-slim).
+- UBUNTU_RELEASE - base image release (default 26.04).
 
 Caching: intel/llvm and engine objects are shared between rebuilds via
 ccache in a BuildKit cache mount — automatic with `buildx`, nothing to
