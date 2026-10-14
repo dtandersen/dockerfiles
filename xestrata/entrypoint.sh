@@ -21,13 +21,23 @@ if [ ! -f "${CONFIG_DIR}/xestrata/settings.json" ]; then
   # Build mode, toolchain and vision are baked into the image (they must
   # match engine/BUILD.json's stamp; this is a text-only image, the image
   # encoders are not built); not configurable on purpose.
-  SETUP_ARGS="--setup --data-dir ${DATA_DIR} --model ${MODEL} --license contrib --intel-llvm /opt/xestrata/.tools/intel-llvm-contrib/install --context ${CONTEXT} --vision no --port 8095 --yes"
+  # XESTRATA_LOW_RAM (auto|on|off|resident|mmap) forces setup's low-RAM mode
+  # (experts from NVMe via the page cache instead of all in RAM); unset =
+  # auto, which only triggers on host RAM shortage, not on a container cap.
+  LOW_RAM_ARGS=""
+  if [ -n "${XESTRATA_LOW_RAM:-}" ]; then
+    case "${XESTRATA_LOW_RAM}" in
+      auto|on|off|resident|mmap) LOW_RAM_ARGS="--low-ram ${XESTRATA_LOW_RAM}" ;;
+      *) echo "XESTRATA_LOW_RAM must be auto|on|off|resident|mmap, got '${XESTRATA_LOW_RAM}'" >&2; exit 1 ;;
+    esac
+  fi
+  SETUP_ARGS="--setup --data-dir ${DATA_DIR} --model ${MODEL} --license contrib --intel-llvm /opt/xestrata/.tools/intel-llvm-contrib/install --context ${CONTEXT} --vision no --port 8095 --host 0.0.0.0 --yes"
   if [ -n "${FAMILY}" ]; then
     # shellcheck disable=SC2086
-    xestrata ${SETUP_ARGS} --family "${FAMILY}"
+    xestrata ${SETUP_ARGS} ${LOW_RAM_ARGS} --family "${FAMILY}"
   else
     # shellcheck disable=SC2086
-    xestrata ${SETUP_ARGS}
+    xestrata ${SETUP_ARGS} ${LOW_RAM_ARGS}
   fi
 fi
 
@@ -62,7 +72,7 @@ fi
 # Verify the exact serve flags with `xestrata --help` when bumping the image;
 # upstream documents `--host 0.0.0.0 --api-key <secret>` for remote access.
 if [ -n "${XESTRATA_API_KEY:-}" ]; then
-  exec xestrata --host 0.0.0.0 --port 8095 --api-key "${XESTRATA_API_KEY}"
+  exec xestrata --host 0.0.0.0 --port 8095 --api-key "${XESTRATA_API_KEY}" --yes
 else
-  exec xestrata --host 0.0.0.0 --port 8095
+  exec xestrata --host 0.0.0.0 --port 8095 --yes
 fi
