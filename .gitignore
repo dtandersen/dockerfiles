@@ -1,0 +1,3 @@
+# Local reference checkouts (e.g. upstream source for comparison).
+# Never part of a build context or a commit.
+xestrata/XeStrata/
