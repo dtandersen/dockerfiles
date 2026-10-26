@@ -48,6 +48,31 @@ if [ -f /tls/tls.crt ] && [ -f /tls/tls.key ]; then
   # Stop CUPS from generating/regenerating 0.0.0.0.crt (ServerName cert)
   # which it prefers over server.crt. With No, final cupsd serves server.crt (LE).
   printf "CreateSelfSignedCerts No\n" > /etc/cups/cups-files.conf
+else
+  # No /tls mount (TCP passthrough for printer.local): CUPS runs as lp and
+  # cannot mint its own server credentials (see "Unable to create server
+  # credentials" in error_log). Generate a self-signed cert at startup with
+  # openssl so CUPS serves TLS end-to-end through the Envoy TCP passthrough.
+  # CUPS 2.4 picks the cert by reverse-lookup of the local address, so
+  # install under every name it may pick.
+  POD_HOST="$(hostname 2>/dev/null || true)"
+  mkdir -p /etc/cups/ssl
+  if [ ! -f /etc/cups/ssl/server.crt ]; then
+    openssl req -x509 -newkey rsa:2048 -nodes \
+      -keyout /etc/cups/ssl/server.key -out /etc/cups/ssl/server.crt \
+      -days 825 -subj "/CN=printer.local" \
+      -addext "subjectAltName=DNS:printer.local,DNS:localhost,DNS:${POD_HOST}" \
+      2>/dev/null
+    chmod 600 /etc/cups/ssl/server.key
+  fi
+  for CN_NAME in "$POD_HOST" "printer.local" "localhost" "0.0.0.0"; do
+    if [ -n "$CN_NAME" ] && [ ! -f "/etc/cups/ssl/${CN_NAME}.crt" ]; then
+      cp /etc/cups/ssl/server.crt "/etc/cups/ssl/${CN_NAME}.crt"
+      cp /etc/cups/ssl/server.key "/etc/cups/ssl/${CN_NAME}.key"
+      chmod 600 "/etc/cups/ssl/${CN_NAME}.key"
+    fi
+  done
+  printf "CreateSelfSignedCerts No\n" > /etc/cups/cups-files.conf
 fi
 
 # 2. Make sure cupsd.conf listens on $CUPS_PORT (image defaults to 8631).
