@@ -19,6 +19,17 @@ if [ ! -s /etc/cups/cupsd.conf ] && [ -f /usr/local/share/cupsd.conf.orig ]; the
   cp /usr/local/share/cupsd.conf.orig /etc/cups/cupsd.conf
 fi
 
+# Backend TLS for Envoy Gateway origination: /tls comes from the printer-tls
+# secret (LE cert). CUPS serves TLS on the same port when server.crt exists,
+# so Envoy's https backend sees an encrypted connection and CUPS advertises
+# ipps:// + https:// URLs instead of ipp:// + http://.
+if [ -f /tls/tls.crt ] && [ -f /tls/tls.key ]; then
+  mkdir -p /etc/cups/ssl
+  cp /tls/tls.crt /etc/cups/ssl/server.crt
+  cp /tls/tls.key /etc/cups/ssl/server.key
+  chmod 600 /etc/cups/ssl/server.key
+fi
+
 # 2. Make sure cupsd.conf listens on $CUPS_PORT (image defaults to 8631).
 if command -v sed >/dev/null 2>&1; then
   sed -i -E "s|^Listen 0\.0\.0\.0:[0-9]+|Listen 0.0.0.0:${CUPS_PORT}|" /etc/cups/cupsd.conf 2>/dev/null || true
