@@ -32,6 +32,19 @@ if [ -f /tls/tls.crt ] && [ -f /tls/tls.key ]; then
   cp /tls/tls.crt /etc/cups/ssl/0.0.0.0.crt
   cp /tls/tls.key /etc/cups/ssl/0.0.0.0.key
   chmod 600 /etc/cups/ssl/server.key /etc/cups/ssl/0.0.0.0.key
+  # CUPS 2.4 selects the server cert by reverse-lookup of the local address
+  # (getsockname + httpAddrLookup), NOT by ServerName. Pod IP reverses via
+  # /etc/hosts to the pod hostname, localhost falls back to 0.0.0.0. With
+  # CreateSelfSignedCerts No and no per-host cert, remote TLS fails while
+  # localhost succeeds. Install LE under every name CUPS may pick.
+  POD_HOST="$(hostname 2>/dev/null || true)"
+  for CN_NAME in "$POD_HOST" "printer.home.davidandersen.us" "localhost"; do
+    if [ -n "$CN_NAME" ]; then
+      cp /tls/tls.crt "/etc/cups/ssl/${CN_NAME}.crt"
+      cp /tls/tls.key "/etc/cups/ssl/${CN_NAME}.key"
+      chmod 600 "/etc/cups/ssl/${CN_NAME}.key"
+    fi
+  done
   # Stop CUPS from generating/regenerating 0.0.0.0.crt (ServerName cert)
   # which it prefers over server.crt. With No, final cupsd serves server.crt (LE).
   printf "CreateSelfSignedCerts No\n" > /etc/cups/cups-files.conf
@@ -121,6 +134,15 @@ if [ -f /tls/tls.crt ] && [ -f /tls/tls.key ]; then
   cp /tls/tls.crt /etc/cups/ssl/0.0.0.0.crt
   cp /tls/tls.key /etc/cups/ssl/0.0.0.0.key
   chmod 600 /etc/cups/ssl/server.key /etc/cups/ssl/0.0.0.0.key
+  # Same per-host install for the final cupsd (pod hostname via reverse lookup).
+  POD_HOST="$(hostname 2>/dev/null || true)"
+  for CN_NAME in "$POD_HOST" "printer.home.davidandersen.us" "localhost"; do
+    if [ -n "$CN_NAME" ]; then
+      cp /tls/tls.crt "/etc/cups/ssl/${CN_NAME}.crt"
+      cp /tls/tls.key "/etc/cups/ssl/${CN_NAME}.key"
+      chmod 600 "/etc/cups/ssl/${CN_NAME}.key"
+    fi
+  done
 fi
 
 echo "Bridge ready (as $(id -u):$(id -g)): http://<service-ip>:631/printers/$PRINTER_NAME -> 127.0.0.1:${CUPS_PORT}"
