@@ -1,0 +1,55 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<!--
+  Static Avahi advertisement for the hl2270dw-ipp-bridge.
+
+  WHY THIS EXISTS: a k8s pod's mDNS multicast never reaches the LAN, so the
+  bridge itself cannot be discovered by Windows even with
+  `BrowseLocalProtocols dnssd`. Drop this file on ANY Linux host on the same
+  LAN/subnet as the Windows clients (a Pi, NAS, or k8s node running
+  avahi-daemon) and Windows will discover the bridge as a Mopria printer
+  instead of a manual-URL generic IPP printer.
+
+  SETUP:
+    1. Replace %BRIDGE_HOST% below with the bridge's LAN IP or hostname
+       (the MetalLB / NodePort address Windows prints through, port 631).
+    2. If you renamed the CUPS queue (PRINTER_NAME), change rp=printers/... to match.
+    3. Copy to /etc/avahi/services/hl2270dw-ipp-bridge.service, then
+       `sudo systemctl reload avahi-daemon`.
+    4. On Windows: REMOVE the manually-added
+       http://<bridge-ip>:631/printers/HL2270DW printer, then
+       Settings > Bluetooth & devices > Printers & scanners > Add device
+       and add the discovered "Brother HL-L2370DN series".
+
+  IDENTITY: the queue advertises as Brother HL-L2370DN series (Mopria-certified
+  family, same mono-laser engine as the HL-2270DW) via the brlaser brl2370d.ppd.
+  The physical printer behind the bridge is still an HL-2270DW. This is a
+  self-claimed identity to satisfy Windows' Mopria shield check, NOT an actual
+  certification. If Windows still shows no shield, the model allowlist check
+  is server-side and cannot be spoofed further from here.
+-->
+<service-group>
+  <name>Brother HL-L2370DN series</name>
+  <service protocol="ipv4">
+    <type>_ipp._tcp</type>
+    <subtype>_universal._sub._ipp._tcp</subtype>
+    <port>631</port>
+    <host-name>%BRIDGE_HOST%</host-name>
+    <txt-record>txtvers=1</txt-record>
+    <txt-record>qtotal=1</txt-record>
+    <txt-record>rp=printers/HL2270DW</txt-record>
+    <txt-record>ty=Brother HL-L2370DN series</txt-record>
+    <txt-record>product=(Brother HL-L2370DN series)</txt-record>
+    <txt-record>pdl=application/pdf,image/urf,image/pwg-raster,application/PCLm,application/vnd.hp-PCL,application/octet-stream</txt-record>
+    <txt-record>URF=V1.4,CP99,W8,OB10,PQ3-4-5,DM1,IS1,MT1-3-5,RS600</txt-record>
+    <txt-record>Color=F</txt-record>
+    <txt-record>Duplex=T</txt-record>
+    <txt-record>kind=document,envelope</txt-record>
+    <txt-record>PaperMax=legal-A4</txt-record>
+    <txt-record>priority=10</txt-record>
+    <txt-record>usb_MFG=Brother</txt-record>
+    <txt-record>usb_MDL=Brother HL-L2370DN series</txt-record>
+    <txt-record>mopria-certified=1.3</txt-record>
+    <txt-record>note=IPP-Everywhere bridge for HL-2270DW</txt-record>
+  </service>
+</service-group>

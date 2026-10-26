@@ -24,13 +24,21 @@ if command -v sed >/dev/null 2>&1; then
   sed -i -E "s|^Listen 0\.0\.0\.0:[0-9]+|Listen 0.0.0.0:${CUPS_PORT}|" /etc/cups/cupsd.conf 2>/dev/null || true
 fi
 
-# 3. Pick a PPD: explicit $PRINTER_PPD > brlaser HL-2270DW > generic PCL
+# 3. Pick a PPD: explicit $PRINTER_PPD > certified-family brlaser HL-L2370DN
+# (Mopria-certified family, same mono-laser engine + URF) > HL-2270DW > generic PCL.
+# The HL-2270DW itself is NOT Mopria certified, so advertising its PPD
+# keeps Windows from showing the Mopria shield. The 2370DN PPD renders
+# through the same rastertobrlaser path to the 9100 backend.
 pick_ppd() {
   if [ -n "$PRINTER_PPD" ]; then
     echo "$PRINTER_PPD"
     return
   fi
+  # Prefer the certified-family PPD so IPP advertises a Mopria-listed model.
+  # brl2370d.ppd = "Brother HL-L2370DN series" (Mopria family, URF-capable).
   if command -v lpinfo >/dev/null 2>&1; then
+    CANDIDATE=$(lpinfo -m 2>/dev/null | grep -i -m1 "2370dn" | awk '{print $1}' || true)
+    if [ -n "$CANDIDATE" ]; then echo "$CANDIDATE"; return; fi
     # brlaser ships HL-2270DW support (printer-driver-brlaser)
     CANDIDATE=$(lpinfo -m 2>/dev/null | grep -i -m1 "2270dw" | awk '{print $1}' || true)
     if [ -n "$CANDIDATE" ]; then echo "$CANDIDATE"; return; fi
@@ -63,7 +71,7 @@ if ! lpstat -v 2>/dev/null | grep -q "$PRINTER_NAME"; then
     -m "$PPD" \
     -o printer-is-shared=true \
     -o print-color-mode-default=monochrome \
-    -D "Brother HL-2270DW via IPP bridge" \
+    -D "Brother HL-L2370DN series via IPP bridge" \
     -L "k8s-ipp-bridge" || {
       echo "brlaser PPD failed, falling back to Generic PCL"
       lpadmin -p "$PRINTER_NAME" -E -v "$PRINTER_DEVICE_URI" \

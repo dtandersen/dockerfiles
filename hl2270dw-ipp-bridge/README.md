@@ -21,7 +21,7 @@ Everything is an environment variable. Defaults work out of the box.
 
 - PRINTER_NAME — CUPS queue name (default HL2270DW)
 - PRINTER_DEVICE_URI — backend URI (default socket://192.168.100.1:9100)
-- PRINTER_PPD — PPD override, e.g. drv:///brlaser.drv/br2270dw.ppd (default: auto-pick 2270dw > brlaser > generpcl)
+- PRINTER_PPD — PPD override, e.g. drv:///brlaser.drv/brl2370d.ppd (default: auto-pick certified-family 2370dn > 2270dw > brlaser > generpcl)
 - CUPS_PORT — container listen port (default 8631, unprivileged so no root needed)
 
 ## Example
@@ -42,6 +42,25 @@ http://<bridge-ip>:631/printers/HL2270DW
 ```
 
 Driver: Microsoft IPP Class Driver (inbox, automatic in WPP mode).
+
+## Mopria shield (green check)
+
+Adding by URL alone registers as generic IPP — no shield. The bridge
+advertises itself as **Brother HL-L2370DN series** (Mopria-certified family,
+same mono-laser engine, brlaser `brl2370d.ppd`) instead of the HL-2270DW,
+which was never certified. For Windows to treat it as Mopria-compatible it
+must be *discovered* over mDNS, not typed in as a URL — and a k8s pod's
+multicast never reaches the LAN. So:
+
+1. Copy `avahi-bridge.service` to any Linux host on the same LAN as the
+   Windows clients (`/etc/avahi/services/`, replace `%BRIDGE_HOST%` with
+   the bridge's LAN IP), `sudo systemctl reload avahi-daemon`.
+2. On Windows, REMOVE the manually-added printer, then Add device and pick
+   the discovered "Brother HL-L2370DN series".
+3. The shield appears only if Windows accepts the self-claimed identity —
+   this is not a real certification, and a PC-wide Protected Print
+   enable may still drop the queue. If no shield, nothing further on the
+   bridge side can force it.
 
 ## Kubernetes
 
