@@ -104,6 +104,18 @@ lpstat -v || true
 kill %1 2>/dev/null || pkill cupsd || true
 sleep 1
 
+# CUPS serves the cert matching ServerName (0.0.0.0.crt), not server.crt,
+# so overwrite all auto-generated certs with the LE cert for Envoy validation.
+if [ -f /tls/tls.crt ] && [ -f /tls/tls.key ]; then
+  for c in /etc/cups/ssl/*.crt; do
+    cp /tls/tls.crt "$c"
+  done
+  for k in /etc/cups/ssl/*.key; do
+    cp /tls/tls.key "$k"
+    chmod 600 "$k"
+  done
+fi
+
 echo "Bridge ready (as $(id -u):$(id -g)): http://<service-ip>:631/printers/$PRINTER_NAME -> 127.0.0.1:${CUPS_PORT}"
 echo "Backend: $PRINTER_DEVICE_URI"
 exec /usr/sbin/cupsd -f
