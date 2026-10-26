@@ -27,7 +27,11 @@ if [ -f /tls/tls.crt ] && [ -f /tls/tls.key ]; then
   mkdir -p /etc/cups/ssl
   cp /tls/tls.crt /etc/cups/ssl/server.crt
   cp /tls/tls.key /etc/cups/ssl/server.key
-  chmod 600 /etc/cups/ssl/server.key
+  # CUPS serves the ServerName cert (0.0.0.0.crt), not server.crt —
+  # install LE under both names so TLS is enabled with the right chain.
+  cp /tls/tls.crt /etc/cups/ssl/0.0.0.0.crt
+  cp /tls/tls.key /etc/cups/ssl/0.0.0.0.key
+  chmod 600 /etc/cups/ssl/server.key /etc/cups/ssl/0.0.0.0.key
   # Stop CUPS from generating/regenerating 0.0.0.0.crt (ServerName cert)
   # which it prefers over server.crt. With No, final cupsd serves server.crt (LE).
   printf "CreateSelfSignedCerts No\n" > /etc/cups/cups-files.conf
@@ -109,13 +113,14 @@ sleep 1
 
 # CUPS prefers the ServerName cert (0.0.0.0.crt) over server.crt and
 # regenerates it on every startup when CreateSelfSignedCerts is Yes.
-# Early block disables auto-generation; refresh server.crt (LE) and drop any
-# stale self-signed ServerName cert so final cupsd serves the LE chain.
+# Early block disables auto-generation; refresh both names with the LE
+# cert so final cupsd serves TLS with the printer.home chain.
 if [ -f /tls/tls.crt ] && [ -f /tls/tls.key ]; then
   cp /tls/tls.crt /etc/cups/ssl/server.crt
   cp /tls/tls.key /etc/cups/ssl/server.key
-  chmod 600 /etc/cups/ssl/server.key
-  rm -f /etc/cups/ssl/0.0.0.0.crt /etc/cups/ssl/0.0.0.0.key
+  cp /tls/tls.crt /etc/cups/ssl/0.0.0.0.crt
+  cp /tls/tls.key /etc/cups/ssl/0.0.0.0.key
+  chmod 600 /etc/cups/ssl/server.key /etc/cups/ssl/0.0.0.0.key
 fi
 
 echo "Bridge ready (as $(id -u):$(id -g)): http://<service-ip>:631/printers/$PRINTER_NAME -> 127.0.0.1:${CUPS_PORT}"
