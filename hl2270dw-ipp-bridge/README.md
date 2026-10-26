@@ -11,25 +11,28 @@ Ghostscript + brlaser, then forwards RAW to the printer.
 
 ## Ports
 
-- 631/tcp — IPP (`ipp://<host>:631/printers/HL2270DW`)
+- 8631/tcp — IPP (`ipp://<host>:8631/printers/HL2270DW`). Runs as `lp`
+  (uid/gid 7, created by the cups package), no root, no capabilities. Map to
+  host 631 with `-p 631:8631` so Windows URLs stay on standard IPP port 631.
 
 ## Settings
 
 Everything is an environment variable. Defaults work out of the box.
 
 - PRINTER_NAME — CUPS queue name (default HL2270DW)
-- PRINTER_DEVICE_URI — backend URI (default socket://192.168.3.28:9100)
+- PRINTER_DEVICE_URI — backend URI (default socket://192.168.100.1:9100)
 - PRINTER_PPD — PPD override, e.g. drv:///brlaser.drv/br2270dw.ppd (default: auto-pick 2270dw > brlaser > generpcl)
+- CUPS_PORT — container listen port (default 8631, unprivileged so no root needed)
 
 ## Example
 
 ```sh
-docker run -d --name ipp-bridge -p 631:631 \
-  -e PRINTER_DEVICE_URI=socket://192.168.3.28:9100 \
+docker run -d --name ipp-bridge -p 631:8631 \
+  -e PRINTER_DEVICE_URI=socket://192.168.100.1:9100 \
   ghcr.io/dtandersen/hl2270dw-ipp-bridge:main
 ```
 
-Print path: `ipp://<host>:631/printers/HL2270DW`.
+Print path: `http://<host>:631/printers/HL2270DW` (container listens on 8631).
 CUPS web UI: http://localhost:631/printers/HL2270DW
 
 Add to Windows 11 with Protected Print ON manually by URL:

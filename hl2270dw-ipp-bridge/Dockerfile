@@ -15,8 +15,9 @@ FROM debian:${DEBIAN_RELEASE}
 
 ENV DEBIAN_FRONTEND=noninteractive \
     CUPS_WEBIF=yes \
+    CUPS_PORT=8631 \
     PRINTER_NAME=HL2270DW \
-    PRINTER_DEVICE_URI=socket://192.168.3.28:9100
+    PRINTER_DEVICE_URI=socket://192.168.100.1:9100
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       cups \
@@ -28,15 +29,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       qpdf \
       poppler-utils \
     && rm -rf /var/lib/apt/lists/* \
-    && mkdir -p /etc/cups /var/spool/cups /var/cache/cups
+    && mkdir -p /etc/cups /var/spool/cups /var/cache/cups /var/log/cups /tmp \
+    && chown -R lp:lp /etc/cups /var/spool/cups /var/cache/cups /var/log/cups \
+    && cp /etc/cups/cupsd.conf /usr/local/share/cupsd.conf.orig
 
 COPY cupsd.conf /etc/cups/cupsd.conf
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh \
+    && cp /etc/cups/cupsd.conf /usr/local/share/cupsd.conf.orig \
+    && chown lp:lp /etc/cups/cupsd.conf /usr/local/bin/entrypoint.sh /usr/local/share/cupsd.conf.orig
 
-EXPOSE 631/tcp
+EXPOSE 8631/tcp
 
 VOLUME ["/etc/cups", "/var/spool/cups", "/var/cache/cups"]
+
+# Run as lp (uid/gid 7, created by the cups package) — no root needed. CUPS
+# listens on unprivileged 8631 (map to 631 externally via Service / -p 631:8631).
+USER lp
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["cupsd", "-f"]

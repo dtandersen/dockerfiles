@@ -2,11 +2,27 @@
 set -e
 
 PRINTER_NAME="${PRINTER_NAME:-HL2270DW}"
-PRINTER_DEVICE_URI="${PRINTER_DEVICE_URI:-socket://192.168.3.28:9100}"
+PRINTER_DEVICE_URI="${PRINTER_DEVICE_URI:-socket://192.168.100.1:9100}"
 PRINTER_PPD="${PRINTER_PPD:-}"
+CUPS_PORT="${CUPS_PORT:-8631}"
 
-# 1. Ensure cupsd dirs exist (k8s emptyDir / PVC mounts come up empty)
-mkdir -p /etc/cups /var/spool/cups /var/cache/cups /run/cups
+# Talk to cupsd over TCP (no /run/cups domain socket when unprivileged).
+export CUPS_SERVER="127.0.0.1:${CUPS_PORT}"
+
+# 1. Ensure cupsd dirs exist (k8s emptyDir / PVC mounts come up empty).
+# No /run/cups here: /run is root-owned and the unprivileged lp user cannot
+# socket lives at /tmp/cups.sock (see cupsd.conf) and /tmp is world-writable.
+mkdir -p /etc/cups /var/spool/cups /var/cache/cups
+
+# k8s emptyDir on /etc/cups hides the image's cupsd.conf — restore it if missing.
+if [ ! -s /etc/cups/cupsd.conf ] && [ -f /usr/local/share/cupsd.conf.orig ]; then
+  cp /usr/local/share/cupsd.conf.orig /etc/cups/cupsd.conf
+fi
+
+# 2. Make sure cupsd.conf listens on $CUPS_PORT (image defaults to 8631).
+if command -v sed >/dev/null 2>&1; then
+  sed -i -E "s|^Listen 0\.0\.0\.0:[0-9]+|Listen 0.0.0.0:${CUPS_PORT}|" /etc/cups/cupsd.conf 2>/dev/null || true
+fi
 
 # 3. Pick a PPD: explicit $PRINTER_PPD > brlaser HL-2270DW > generic PCL
 pick_ppd() {
@@ -69,6 +85,6 @@ lpstat -v || true
 kill %1 2>/dev/null || pkill cupsd || true
 sleep 1
 
-echo "Bridge ready: ipp://<service-ip>:631/printers/$PRINTER_NAME"
+echo "Bridge ready (as $(id -u):$(id -g)): http://<service-ip>:631/printers/$PRINTER_NAME -> 127.0.0.1:${CUPS_PORT}"
 echo "Backend: $PRINTER_DEVICE_URI"
 exec /usr/sbin/cupsd -f
