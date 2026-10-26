@@ -1,0 +1,58 @@
+# Builds hl2270dw-ipp-bridge and pushes it to GHCR.
+#
+# The image tag follows the push: branch name for branches (main), tag name
+# for tags. Push a version tag like 1.0.0 to release — then point image in
+# the printer k8s manifest ../printer/k8s.yaml at the new tag.
+#
+# Auth uses the automatic GITHUB_TOKEN (no manual secrets). After the first
+# push, set the package to public (ghcr.io/dtandersen → hl2270dw-ipp-bridge →
+# Package settings → Change visibility); the cluster pulls it anonymously.
+# A private package would need an imagePullSecret on the workload instead.
+
+name: hl2270dw-ipp-bridge
+
+on:
+  push:
+    branches: [main]
+    tags: ['[0-9]*']
+    paths:
+      - hl2270dw-ipp-bridge/**
+      - .github/workflows/hl2270dw-ipp-bridge.yaml
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ghcr.io/dtandersen/hl2270dw-ipp-bridge
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            # Fallback so manual dispatches (neither branch nor tag ref)
+            # still produce a tag.
+            type=sha
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: hl2270dw-ipp-bridge
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
