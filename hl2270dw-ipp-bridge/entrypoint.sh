@@ -28,6 +28,9 @@ if [ -f /tls/tls.crt ] && [ -f /tls/tls.key ]; then
   cp /tls/tls.crt /etc/cups/ssl/server.crt
   cp /tls/tls.key /etc/cups/ssl/server.key
   chmod 600 /etc/cups/ssl/server.key
+  # Stop CUPS from generating/regenerating 0.0.0.0.crt (ServerName cert)
+  # which it prefers over server.crt. With No, final cupsd serves server.crt (LE).
+  printf "CreateSelfSignedCerts No\n" > /etc/cups/cups-files.conf
 fi
 
 # 2. Make sure cupsd.conf listens on $CUPS_PORT (image defaults to 8631).
@@ -104,16 +107,15 @@ lpstat -v || true
 kill %1 2>/dev/null || pkill cupsd || true
 sleep 1
 
-# CUPS serves the cert matching ServerName (0.0.0.0.crt), not server.crt,
-# so overwrite all auto-generated certs with the LE cert for Envoy validation.
+# CUPS prefers the ServerName cert (0.0.0.0.crt) over server.crt and
+# regenerates it on every startup when CreateSelfSignedCerts is Yes.
+# Early block disables auto-generation; refresh server.crt (LE) and drop any
+# stale self-signed ServerName cert so final cupsd serves the LE chain.
 if [ -f /tls/tls.crt ] && [ -f /tls/tls.key ]; then
-  for c in /etc/cups/ssl/*.crt; do
-    cp /tls/tls.crt "$c"
-  done
-  for k in /etc/cups/ssl/*.key; do
-    cp /tls/tls.key "$k"
-    chmod 600 "$k"
-  done
+  cp /tls/tls.crt /etc/cups/ssl/server.crt
+  cp /tls/tls.key /etc/cups/ssl/server.key
+  chmod 600 /etc/cups/ssl/server.key
+  rm -f /etc/cups/ssl/0.0.0.0.crt /etc/cups/ssl/0.0.0.0.key
 fi
 
 echo "Bridge ready (as $(id -u):$(id -g)): http://<service-ip>:631/printers/$PRINTER_NAME -> 127.0.0.1:${CUPS_PORT}"
