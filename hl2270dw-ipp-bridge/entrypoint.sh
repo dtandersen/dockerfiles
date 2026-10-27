@@ -4,7 +4,7 @@ set -e
 PRINTER_NAME="${PRINTER_NAME:-HL2270DW}"
 PRINTER_DEVICE_URI="${PRINTER_DEVICE_URI:-socket://192.168.100.1:9100}"
 PRINTER_PPD="${PRINTER_PPD:-}"
-PRINTER_UUID="${PRINTER_UUID:-470de2bc-eda2-3374-6bc0-f1c4644d6cdd}"
+PRINTER_UUID="${PRINTER_UUID:-079ac6e8-ea74-4414-9cc2-0553b5a414c3}"
 PRINTER_PAPER_SIZE="${PRINTER_PAPER_SIZE:-Letter}"
 CUPS_PORT="${CUPS_PORT:-8631}"
 
@@ -157,10 +157,7 @@ lpstat -v || true
 kill %1 2>/dev/null || pkill cupsd || true
 sleep 1
 
-# Pin a stable printer-uuid so IPP and DNS-SD agree across restarts.
-# CUPS mints a fresh UUID at queue creation and /etc/cups is emptyDir,
-# so without this every pod restart breaks Windows' bound device identity.
-# Canonical: 470de2bc-eda2-3374-6bc0-f1c4644d6cdd (must match Avahi TXT UUID).
+# Must match Avahi TXT UUID.
 if [ -n "${PRINTER_UUID:-}" ]; then
   case "$PRINTER_UUID" in
     urn:uuid:*) UUID_VAL="$PRINTER_UUID" ;;
