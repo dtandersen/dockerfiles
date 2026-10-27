@@ -4,6 +4,7 @@ set -e
 PRINTER_NAME="${PRINTER_NAME:-HL2270DW}"
 PRINTER_DEVICE_URI="${PRINTER_DEVICE_URI:-socket://192.168.100.1:9100}"
 PRINTER_PPD="${PRINTER_PPD:-}"
+PRINTER_UUID="${PRINTER_UUID:-470de2bc-eda2-3374-6bc0-f1c4644d6cdd}"
 PRINTER_PAPER_SIZE="${PRINTER_PAPER_SIZE:-Letter}"
 CUPS_PORT="${CUPS_PORT:-8631}"
 
@@ -20,16 +21,16 @@ if [ ! -s /etc/cups/cupsd.conf ] && [ -f /usr/local/share/cupsd.conf.orig ]; the
   cp /usr/local/share/cupsd.conf.orig /etc/cups/cupsd.conf
 fi
 
-# Backend TLS for Envoy Gateway origination: /tls comes from the printer-tls
-# secret (LE cert). CUPS serves TLS on the same port when server.crt exists,
-# so Envoy's https backend sees an encrypted connection and CUPS advertises
-# ipps:// + https:// URLs instead of ipp:// + http://.
+# Backend TLS: /tls comes from the printer-tls secret (pinned self-signed
+# CN=printer.local, or LE when printer.home was used). CUPS serves TLS on
+# the same port when server.crt exists, so the TCP passthrough serves
+# an encrypted connection end-to-end and CUPS advertises ipps:// URLs.
 if [ -f /tls/tls.crt ] && [ -f /tls/tls.key ]; then
   mkdir -p /etc/cups/ssl
   cp /tls/tls.crt /etc/cups/ssl/server.crt
   cp /tls/tls.key /etc/cups/ssl/server.key
   # CUPS serves the ServerName cert (0.0.0.0.crt), not server.crt —
-  # install LE under both names so TLS is enabled with the right chain.
+  # install the pinned cert under both names so TLS carries the right chain.
   cp /tls/tls.crt /etc/cups/ssl/0.0.0.0.crt
   cp /tls/tls.key /etc/cups/ssl/0.0.0.0.key
   chmod 600 /etc/cups/ssl/server.key /etc/cups/ssl/0.0.0.0.key
@@ -37,9 +38,9 @@ if [ -f /tls/tls.crt ] && [ -f /tls/tls.key ]; then
   # (getsockname + httpAddrLookup), NOT by ServerName. Pod IP reverses via
   # /etc/hosts to the pod hostname, localhost falls back to 0.0.0.0. With
   # CreateSelfSignedCerts No and no per-host cert, remote TLS fails while
-  # localhost succeeds. Install LE under every name CUPS may pick.
+  # localhost succeeds. Install the pinned cert under every name CUPS may pick.
   POD_HOST="$(hostname 2>/dev/null || true)"
-  for CN_NAME in "$POD_HOST" "printer.home.davidandersen.us" "localhost"; do
+  for CN_NAME in "$POD_HOST" "printer.local" "printer.home.davidandersen.us" "localhost"; do
     if [ -n "$CN_NAME" ]; then
       cp /tls/tls.crt "/etc/cups/ssl/${CN_NAME}.crt"
       cp /tls/tls.key "/etc/cups/ssl/${CN_NAME}.key"
@@ -156,10 +157,24 @@ lpstat -v || true
 kill %1 2>/dev/null || pkill cupsd || true
 sleep 1
 
+# Pin a stable printer-uuid so IPP and DNS-SD agree across restarts.
+# CUPS mints a fresh UUID at queue creation and /etc/cups is emptyDir,
+# so without this every pod restart breaks Windows' bound device identity.
+# Canonical: 470de2bc-eda2-3374-6bc0-f1c4644d6cdd (must match Avahi TXT UUID).
+if [ -n "${PRINTER_UUID:-}" ]; then
+  case "$PRINTER_UUID" in
+    urn:uuid:*) UUID_VAL="$PRINTER_UUID" ;;
+    *) UUID_VAL="urn:uuid:$PRINTER_UUID" ;;
+  esac
+  if [ -f /etc/cups/printers.conf ]; then
+    sed -i -E "s|^UUID .*|UUID $UUID_VAL|" /etc/cups/printers.conf || true
+  fi
+fi
+
 # CUPS prefers the ServerName cert (0.0.0.0.crt) over server.crt and
 # regenerates it on every startup when CreateSelfSignedCerts is Yes.
-# Early block disables auto-generation; refresh both names with the LE
-# cert so final cupsd serves TLS with the printer.home chain.
+# Early block disables auto-generation; refresh all names with the pinned
+# /tls cert so final cupsd serves TLS with the same chain.
 if [ -f /tls/tls.crt ] && [ -f /tls/tls.key ]; then
   cp /tls/tls.crt /etc/cups/ssl/server.crt
   cp /tls/tls.key /etc/cups/ssl/server.key
@@ -168,7 +183,7 @@ if [ -f /tls/tls.crt ] && [ -f /tls/tls.key ]; then
   chmod 600 /etc/cups/ssl/server.key /etc/cups/ssl/0.0.0.0.key
   # Same per-host install for the final cupsd (pod hostname via reverse lookup).
   POD_HOST="$(hostname 2>/dev/null || true)"
-  for CN_NAME in "$POD_HOST" "printer.home.davidandersen.us" "localhost"; do
+  for CN_NAME in "$POD_HOST" "printer.local" "printer.home.davidandersen.us" "localhost"; do
     if [ -n "$CN_NAME" ]; then
       cp /tls/tls.crt "/etc/cups/ssl/${CN_NAME}.crt"
       cp /tls/tls.key "/etc/cups/ssl/${CN_NAME}.key"
