@@ -4,6 +4,7 @@ set -e
 PRINTER_NAME="${PRINTER_NAME:-HL2270DW}"
 PRINTER_DEVICE_URI="${PRINTER_DEVICE_URI:-socket://192.168.100.1:9100}"
 PRINTER_PPD="${PRINTER_PPD:-}"
+PRINTER_PAPER_SIZE="${PRINTER_PAPER_SIZE:-Letter}"
 CUPS_PORT="${CUPS_PORT:-8631}"
 
 # Talk to cupsd over TCP (no /run/cups domain socket when unprivileged).
@@ -120,28 +121,34 @@ cupsctl --share-printers --remote-any || true
 
 if ! lpstat -v 2>/dev/null | grep -q "$PRINTER_NAME"; then
   PPD=$(pick_ppd)
-  echo "Creating printer $PRINTER_NAME -> $PRINTER_DEVICE_URI with PPD $PPD"
+  echo "Creating printer $PRINTER_NAME -> $PRINTER_DEVICE_URI with PPD $PPD paper $PRINTER_PAPER_SIZE"
   lpadmin -p "$PRINTER_NAME" \
     -E \
     -v "$PRINTER_DEVICE_URI" \
     -m "$PPD" \
     -o printer-is-shared=true \
     -o print-color-mode-default=monochrome \
+    -o PageSize="$PRINTER_PAPER_SIZE" \
     -D "Brother HL-L2370DN series via IPP bridge" \
     -L "k8s-ipp-bridge" || {
       echo "brlaser PPD failed, falling back to Generic PCL"
       lpadmin -p "$PRINTER_NAME" -E -v "$PRINTER_DEVICE_URI" \
         -m drv:///sample.drv/generpcl.ppd \
-        -o printer-is-shared=true || true
+        -o printer-is-shared=true \
+        -o PageSize="$PRINTER_PAPER_SIZE" || true
     }
   cupsenable "$PRINTER_NAME" || true
   cupsaccept "$PRINTER_NAME" || true
 else
-  echo "Printer $PRINTER_NAME already exists, enabling sharing"
+  echo "Printer $PRINTER_NAME already exists, enabling sharing paper $PRINTER_PAPER_SIZE"
   lpadmin -p "$PRINTER_NAME" -o printer-is-shared=true || true
+  lpadmin -p "$PRINTER_NAME" -o PageSize="$PRINTER_PAPER_SIZE" || true
   cupsenable "$PRINTER_NAME" || true
   cupsaccept "$PRINTER_NAME" || true
 fi
+
+# System paper default for libpaper-aware filters (lowercase: letter).
+echo "$PRINTER_PAPER_SIZE" | tr '[:upper:]' '[:lower:]' > /etc/papersize 2>/dev/null || true
 
 lpstat -v || true
 
