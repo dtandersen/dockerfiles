@@ -11,8 +11,11 @@ VISION="${XESTRATA_VISION:-no}"
 
 export XDG_CONFIG_HOME="${CONFIG_DIR}"
 export XDG_DATA_HOME="${DATA_DIR}"
+# STATE holds serve/vision logs. Old setups baked /root/.local/state
+# into xestrata-*.json, so keep that dir too or serve can't open its log.
+export XDG_STATE_HOME="${XESTRATA_STATE_DIR:-${CONFIG_DIR}}"
 
-mkdir -p "${DATA_DIR}" "${CONFIG_DIR}"
+mkdir -p "${DATA_DIR}" "${CONFIG_DIR}" "${XDG_STATE_HOME}/xestrata" /root/.local/state/xestrata
 
 case "${VISION}" in
   yes|no|none|gpu|cpu) ;;
