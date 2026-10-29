@@ -4,6 +4,11 @@
 
 It is made to run MoE models that are too large to fit in VRAM. The experts live in RAM and `xestrata` learns which ones are most used and swaps them into VRAM. It can also run the experts on the CPU.
 
+This image installs upstream's prebuilt **contrib** `.deb`
+(`xestrata-contrib-cuda13.1` by default — CUDA 13.1 PTX, Turing through
+Hopper). For the Intel-only source build
+with intel/llvm `--contrib`, see [xestrata-llvm](../xestrata-llvm/).
+
 ## Volumes
 
 - /data - model weights
@@ -25,6 +30,10 @@ Everything is an environment variable. Defaults work out of the box.
 - XESTRATA_MODEL - which model to download (default IQ2_XS)
 - XESTRATA_CONTEXT - context length in tokens (default 32768)
 - XESTRATA_API_KEY - require this API key (default unset = open port)
+- XESTRATA_VISION - let the model read images: yes|no|none|gpu|cpu
+  (default no = text-only, like xestrata-llvm; the deb ships both the CPU
+  and Vulkan encoders, so `yes`/`gpu`/`cpu` work — Vulkan needs a GPU
+  with `mesa-vulkan-drivers`, installed in the image)
 - STRATA_NO_BLAS - use the engine's own GEMM kernels instead of oneMath
   (default 1, baked into the image; `-e STRATA_NO_BLAS=0` retries oneMKL
   on Intel or cuBLAS on NVIDIA)
@@ -76,9 +85,9 @@ mkdir -p /tmp/empty-kfd
 ```
 
 The image defaults to its own GEMM kernels (`STRATA_NO_BLAS=1`, baked
-in): oneMath's oneMKL backend segfaults on this stack (intel/llvm
-7.1.1's UR Level Zero v2 adapter). Pass `-e STRATA_NO_BLAS=0` to retry
-oneMKL on Intel or for cuBLAS on NVIDIA hosts.
+in): oneMath's oneMKL backend segfaults on the intel/llvm 7.1.1 UR Level
+Zero v2 stack. Pass `-e STRATA_NO_BLAS=0` to retry oneMKL on Intel or
+for cuBLAS on NVIDIA hosts.
 
 First start downloads the model (~84 GB) into the data volume, then
 serves it. Chat at http://localhost:8095, or point any OpenAI-compatible
@@ -88,30 +97,17 @@ app at http://localhost:8095/v1.
 
 ```sh
 docker buildx build ./xestrata -t xestrata:local \
-  --build-arg XESTRATA_REF=xe0.1.43.1 \
-  --build-arg XESTRATA_JOBS=16
+  --build-arg XESTRATA_REF=xe0.1.43.1
 ```
 
 Build args:
 
-- XESTRATA_REF - upstream git tag to build (default xe0.1.43.1).
-  Tag pushes to this repo build that version instead.
-- XESTRATA_REPO - source repository (default upstream). Point at a fork
-  to build a fix branch, e.g. `--build-arg XESTRATA_REPO=https://github.com/you/XeStrata.git`
-  with `--build-arg XESTRATA_REF=my-fix`.
-- XESTRATA_JOBS - build parallelism (default: all CPUs).
-- XESTRATA_LLVM_TAG - intel/llvm release to build (default v7.1.1,
-  the validated one; must be 7+ for libsycl 9).
-- XESTRATA_CUDA_ARCHS - NVIDIA architectures for device code and cuBLAS
-  (default sm_60;sm_61;sm_70;sm_75;sm_80;sm_86;sm_89;sm_90, upstream's
-  CUDA 12.4 set). Trim for one generation, e.g.
-  `--build-arg XESTRATA_CUDA_ARCHS=sm_89`.
-- CCACHE_MAXSIZE - compiler cache size (default 30G, like upstream's
-  deb builds). Lower it where cache storage is capped, e.g.
-  `--build-arg CCACHE_MAXSIZE=8G` for GitHub Actions (10 GB cache limit).
+- XESTRATA_REF - upstream git tag to install (default xe0.1.43.1).
+  Tag pushes to this repo install that version instead. The .deb file
+  name is resolved via the release's SHA256SUMS, so release-count
+  suffixes (e.g. `0.1.43-2`) need no mapping.
+- XESTRATA_VARIANT - upstream package variant (default contrib-cuda13.1).
+  `contrib-cuda12.4` keeps Pascal/Volta (sm_60/sm_61/sm_70) — a
+  P100/P40/V100 takes cuda12.4. Newer GPUs run the newest PTX their
+  driver compiles.
 - UBUNTU_RELEASE - base image release (default 26.04).
-
-Caching: intel/llvm and engine objects are shared between rebuilds via
-ccache in a BuildKit cache mount — automatic with `buildx`, nothing to
-pass. The GitHub workflow exports it with `type=gha,mode=max`, so CI
-rebuilds reuse it too (within the 10 GB cap).

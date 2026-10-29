@@ -1,5 +1,5 @@
 #!/bin/sh
-# Container entrypoint for XeStrata.
+# Container entrypoint for XeStrata (deb image).
 # Runs the interactive setup once (non-interactive flags), then starts the
 # server in the foreground. Configuration is driven by chart values via env.
 set -eu
@@ -9,18 +9,26 @@ CONFIG_DIR="${XESTRATA_CONFIG_DIR:-/config}"
 MODEL="${XESTRATA_MODEL:-IQ2_XS}"
 FAMILY="${XESTRATA_FAMILY:-}"
 CONTEXT="${XESTRATA_CONTEXT:-32768}"
+VISION="${XESTRATA_VISION:-no}"
 
 export XDG_CONFIG_HOME="${CONFIG_DIR}"
 export XDG_DATA_HOME="${DATA_DIR}"
 
 mkdir -p "${DATA_DIR}" "${CONFIG_DIR}"
 
+case "${VISION}" in
+  yes|no|none|gpu|cpu) ;;
+  *) echo "XESTRATA_VISION must be yes|no|none|gpu|cpu, got '${VISION}'" >&2; exit 1 ;;
+esac
+
 # First start: fetch the model (60-110 GB) and write the server config.
 # Settings land under ${CONFIG_DIR}/xestrata, models under ${DATA_DIR}.
 if [ ! -f "${CONFIG_DIR}/xestrata/settings.json" ]; then
-  # Build mode, toolchain and vision are baked into the image (they must
-  # match engine/BUILD.json's stamp; this is a text-only image, the image
-  # encoders are not built); not configurable on purpose.
+  # Build mode and vision encoders are baked into the image (upstream's
+  # contrib .deb: engine + CPU/Vulkan encoders + SYCL 9 runtime); the
+  # deb has no toolchain, so there is no --intel-llvm flag. License must
+  # stay contrib (NVIDIA code); vision defaults to no (text-only, like
+  # xestrata-llvm) — set XESTRATA_VISION=yes|gpu|cpu to read images.
   # XESTRATA_LOW_RAM (auto|on|off|resident|mmap) forces setup's low-RAM mode
   # (experts from NVMe via the page cache instead of all in RAM); unset =
   # auto, which only triggers on host RAM shortage, not on a container cap.
@@ -31,7 +39,7 @@ if [ ! -f "${CONFIG_DIR}/xestrata/settings.json" ]; then
       *) echo "XESTRATA_LOW_RAM must be auto|on|off|resident|mmap, got '${XESTRATA_LOW_RAM}'" >&2; exit 1 ;;
     esac
   fi
-  SETUP_ARGS="--setup --data-dir ${DATA_DIR} --model ${MODEL} --license contrib --intel-llvm /opt/xestrata/.tools/intel-llvm-contrib/install --context ${CONTEXT} --vision no --port 8095 --host 0.0.0.0 --yes"
+  SETUP_ARGS="--setup --data-dir ${DATA_DIR} --model ${MODEL} --license contrib --context ${CONTEXT} --vision ${VISION} --port 8095 --host 0.0.0.0 --yes"
   if [ -n "${FAMILY}" ]; then
     # shellcheck disable=SC2086
     xestrata ${SETUP_ARGS} ${LOW_RAM_ARGS} --family "${FAMILY}"
@@ -75,7 +83,9 @@ if [ -n "${XESTRATA_POOL_WORKERS:-}" ]; then
   fi
 fi
 if [ -n "${XESTRATA_VRAM_RESERVE:-}${XESTRATA_PARALLEL:-}${XESTRATA_POOL_WORKERS:-}" ]; then
-  for cfg in /opt/xestrata/xestrata-*.json; do
+  # PACKAGED mode (deb): model configs live under $XDG_CONFIG_HOME/xestrata,
+  # not in the read-only /usr/share/xestrata tree.
+  for cfg in "${CONFIG_DIR}"/xestrata/xestrata-*.json; do
     [ -f "$cfg" ] || continue
     XESTRATA_VRAM_RESERVE="${XESTRATA_VRAM_RESERVE:-}" \
     XESTRATA_PARALLEL="${XESTRATA_PARALLEL:-}" \
