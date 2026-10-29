@@ -1,65 +1,23 @@
-# XeStrata runtime image from upstream's .deb (Ubuntu).
-#
-# Installs the prebuilt contrib package (xestrata-contrib-cuda13.1 by
-# default, CUDA 13.1 PTX for Turing through Hopper — the same arch set the
-# xestrata-llvm source image can build) instead of compiling intel/llvm and
-# the engine. Fast build, fast start: setup.py sees
-# `engine already built for this PC` and never recompiles in the pod.
-#
-# What the deb holds (cmake/packaging.cmake): setup.py as `xestrata` plus
-# the server/web/tools in /usr/share/xestrata (read-only, PACKAGED mode —
-# user files go to $XDG_CONFIG_HOME/xestrata), and the engine (strata, the
-# CPU+Vulkan image encoders, intel/llvm's SYCL runtime libsycl.so.9 with
-# its Level Zero/CUDA adapters, oneMath with its oneMKL/cuBLAS/rocBLAS
-# backends) in <libdir>/xestrata/engine with engine/BUILD.json.
-#
-# GPU vendors are Suggests, not Requires: the image installs no CUDA
-# toolkit, no oneMKL, no ROCm. oneMath opens cuBLAS/oneMKL and the UR
-# adapters open their drivers at run time, only on hosts with those GPUs
-# (upstream's container.sh does the same). Intel-only hosts need nothing
-# else; NVIDIA hosts need a driver that loads the variant's PTX plus
-# cuBLAS, AMD hosts need ROCm's HIP runtime/rocBLAS/hipBLASLt.
-#
-# Assumptions baked in (same as xestrata-llvm):
-# - Own-kernel GEMMs (STRATA_NO_BLAS=1): oneMath's oneMKL backend
-#   segfaulted on the intel/llvm 7.1.1 UR Level Zero v2 stack (gdb
-#   backtrace 2026-10-14). Pass -e STRATA_NO_BLAS=0 to retry oneMKL on
-#   Intel or for cuBLAS on NVIDIA hosts.
-# - Exact expert routing (STRATA_ROUTE_TAIL_SKIP=0): the engine segfaulted
-#   in MTP suffix-draft verification with tail-skip on while verify
-#   captures ran nearly out of VRAM (2026-10-14). Pass
-#   -e STRATA_ROUTE_TAIL_SKIP=7 to re-enable upstream's default.
-# - Text-only by default (XESTRATA_VISION=no): the deb does ship the
-#   Vulkan/CPU image encoders (mesa-vulkan-drivers is installed), so set
-#   XESTRATA_VISION=yes|gpu|cpu to let the model read images.
-#
-# Verify after building (on the B70 host):
-#   docker run --rm --device /dev/dri <image> xestrata --check
+# XeStrata runtime from upstream's prebuilt contrib .deb.
+# No compile; setup.py finds the engine already built and only fetches
+# the model on first start. Text-only by default (XESTRATA_VISION=no).
 
 ARG UBUNTU_RELEASE=26.04
-# Upstream git tag (release name, e.g. xe0.1.43.1). The .deb file name
-# carries the Debian version (e.g. 0.1.43-2), so the build resolves it via
-# the release's SHA256SUMS instead of reconstructing it from the tag.
-ARG XESTRATA_REF=xe0.1.43.1
-# Upstream package variant (tools/package/build.sh variant with the
-# contrib prefix, e.g. contrib-cuda13.1 or contrib-cuda12.4). cuda12.4
-# covers Pascal and Volta (sm_60/sm_61/sm_70); CUDA 13 builds drop them,
-# so a P100/P40/V100 takes cuda12.4. Newer GPUs run the newest PTX their
-# driver compiles.
+# Upstream tag, e.g. xe0.2.2-1. The .deb carries the Debian version
+# (0.2.2-1), resolved via the release SHA256SUMS.
+ARG XESTRATA_REF=xe0.2.2-1
+# Package variant. cuda12.4 keeps Pascal/Volta (sm_60/61/70); CUDA 13 drops them.
 ARG XESTRATA_VARIANT=contrib-cuda13.1
 
 FROM ubuntu:${UBUNTU_RELEASE}
 ARG XESTRATA_REF
 ARG XESTRATA_VARIANT
 ENV DEBIAN_FRONTEND=noninteractive
-# Own-kernel GEMMs by default (see header note).
+# oneMKL segfault 2026-10-14; 0 retries oneMKL/cuBLAS.
 ENV STRATA_NO_BLAS=1
-# Exact expert routing in verify windows (see header note).
+# MTP verify segfault 2026-10-14; 7 is upstream default.
 ENV STRATA_ROUTE_TAIL_SKIP=0
 
-# Upstream .deb, SHA256SUMS-verified. Resolved by variant + arch instead
-# of reconstructing the Debian version from the tag (xe0.1.43.1 ->
-# 0.1.43-2 is a release count, not the tag suffix).
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl \
     && rm -rf /var/lib/apt/lists/* \
@@ -75,12 +33,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && command -v xestrata
 
-# Intel Level Zero userspace, pinned 26 series (verified release assets).
-# Re-pin all four together. Ubuntu 26.04 ships an older compute-runtime
-# (device-memory bug) and IGC 2.27-2.30 (miscompile on Arc B-series /
-# Lunar / Panther Lake), so the deb's Suggests are not enough here.
-# Every step is &&-chained on purpose: a failed download or install must
-# fail the build here, not limp on without a GPU driver.
+# Pinned Intel userspace: Ubuntu 26.04's compute-runtime has a device-memory
+# bug and IGC 2.27-2.30 miscompiles on Battlemage.
 ARG INTEL_CR=26.35.39758.10
 ARG INTEL_IGC=2.41.5
 ARG INTEL_IGC_BUILD=22716
@@ -96,10 +50,8 @@ RUN cd /tmp \
     && rm -rf /var/lib/apt/lists/* \
     && ldconfig -p | grep -q libze_intel_gpu
 
-# Self-checks: the deb's layout (PACKAGED mode), contrib engine, bundled
-# SYCL 9 runtime, both vision encoders, and no missing engine libs except
-# the vendor ones that only exist on their hosts (cuBLAS/oneMKL/ROCm open
-# at run time — see header note).
+# Sanity check: PACKAGED layout, contrib engine, bundled SYCL 9, both
+# vision encoders; only vendor libs (cuBLAS/oneMKL/ROCm) may be missing.
 RUN ENGINE_BUILD="$(dpkg -L "xestrata-${XESTRATA_VARIANT}" 2>/dev/null | grep '/xestrata/engine/BUILD.json$' | head -n 1)" \
     && test -n "${ENGINE_BUILD}" \
     && echo "engine BUILD.json: ${ENGINE_BUILD}" \

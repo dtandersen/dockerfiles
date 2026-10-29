@@ -1,15 +1,6 @@
-# Builds xestrata-llvm and pushes it to GHCR.
-#
-# The image tag follows the push: branch name for branches (main), tag name
-# for tags. Push a tag like xe0.1.43.1 to build that upstream version — the
-# tag doubles as XESTRATA_REF. (Release tags stay in lockstep with the charts
-# repo via the xestrata/deb image — see .github/workflows/xestrata.yaml —
-# bump those together; this llvm image just follows the same tag scheme.)
-#
-# Auth uses the automatic GITHUB_TOKEN (no manual secrets). After the first
-# push, set the package to public (ghcr.io/dtandersen → xestrata-llvm →
-# Package settings → Change visibility); the cluster pulls it anonymously.
-# A private package would need an imagePullSecret on the workload instead.
+# Builds xestrata-llvm and pushes it to GHCR. Tag pushes (e.g. xe0.1.43.1)
+# build that upstream version. After the first push make the ghcr package
+# public or the cluster cannot pull it.
 
 name: xestrata-llvm
 
@@ -25,14 +16,11 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE: ghcr.io/dtandersen/xestrata-llvm
-  # Upstream git tag baked into branch builds. Tag pushes override this
-  # with the tag name (see set-ref step).
   XESTRATA_REF: "xe0.1.43.1"
 
 jobs:
   build-push:
     runs-on: ubuntu-latest
-    # intel/llvm + engine from source take a long time on a small runner.
     timeout-minutes: 300
     permissions:
       contents: read
@@ -40,7 +28,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Tag pushes (xe0.1.43.1) build that upstream version.
       - name: Set ref
         run: echo "XESTRATA_REF=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
         if: startsWith(github.ref, 'refs/tags/')
@@ -52,8 +39,6 @@ jobs:
           tags: |
             type=ref,event=branch
             type=ref,event=tag
-            # Fallback so manual dispatches (neither branch nor tag ref)
-            # still produce a tag.
             type=sha
 
       - uses: docker/login-action@v3
@@ -62,7 +47,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # The GHA cache backend cannot export on the default docker driver.
       - uses: docker/setup-buildx-action@v3
         with:
           driver: docker-container
@@ -71,14 +55,11 @@ jobs:
         with:
           context: xestrata-llvm
           push: true
-          # 8G: the GHA cache backend caps at 10 GB; the Dockerfile
-          # default (30G, like upstream's deb builds) is for local builds.
+          # 8G: GHA cache caps at 10 GB; 30G Dockerfile default is for local builds.
           build-args: |
             XESTRATA_REF=${{ env.XESTRATA_REF }}
             CCACHE_MAXSIZE=8G
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # Builder stages are unchanged by runtime-only edits, so a rebuild
-          # reuses them and only re-runs the runtime stage (minutes).
           cache-from: type=gha
           cache-to: type=gha,mode=max

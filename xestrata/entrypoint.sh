@@ -1,7 +1,5 @@
 #!/bin/sh
-# Container entrypoint for XeStrata (deb image).
-# Runs the interactive setup once (non-interactive flags), then starts the
-# server in the foreground. Configuration is driven by chart values via env.
+# XeStrata entrypoint (deb image): run setup once, then serve.
 set -eu
 
 DATA_DIR="${XESTRATA_DATA_DIR:-/data}"
@@ -21,17 +19,7 @@ case "${VISION}" in
   *) echo "XESTRATA_VISION must be yes|no|none|gpu|cpu, got '${VISION}'" >&2; exit 1 ;;
 esac
 
-# First start: fetch the model (60-110 GB) and write the server config.
-# Settings land under ${CONFIG_DIR}/xestrata, models under ${DATA_DIR}.
 if [ ! -f "${CONFIG_DIR}/xestrata/settings.json" ]; then
-  # Build mode and vision encoders are baked into the image (upstream's
-  # contrib .deb: engine + CPU/Vulkan encoders + SYCL 9 runtime); the
-  # deb has no toolchain, so there is no --intel-llvm flag. License must
-  # stay contrib (NVIDIA code); vision defaults to no (text-only, like
-  # xestrata-llvm) — set XESTRATA_VISION=yes|gpu|cpu to read images.
-  # XESTRATA_LOW_RAM (auto|on|off|resident|mmap) forces setup's low-RAM mode
-  # (experts from NVMe via the page cache instead of all in RAM); unset =
-  # auto, which only triggers on host RAM shortage, not on a container cap.
   LOW_RAM_ARGS=""
   if [ -n "${XESTRATA_LOW_RAM:-}" ]; then
     case "${XESTRATA_LOW_RAM}" in
@@ -49,21 +37,8 @@ if [ ! -f "${CONFIG_DIR}/xestrata/settings.json" ]; then
   fi
 fi
 
-# Optional engine tuning, patched into every installed model config after
-# setup and before serve, on every start (setup.py has no persistent flags
-# for these, so env is the only post-install lever):
-# - XESTRATA_VRAM_RESERVE=N: --vram-reserve-mib N (MiB of VRAM the engine
-#   leaves free; the expert cache takes that much less). Unset = 700.
-#   Raise for verify-window headroom on tight cards (e.g. 2048).
-# - XESTRATA_PARALLEL=N: "parallel": N (concurrent decodes, 2+; 1 removes
-#   the key = explicitly sequential). Unset = sequential. Each slot costs
-#   ~0.6 GB of VRAM from the expert cache at 32k int8 (more at larger
-#   contexts); where experts mostly run from CPU each request also gets
-#   10-25% slower (docs/BATCHING.md).
-# - XESTRATA_POOL_WORKERS=N: --pool-workers N (CPU threads computing
-#   experts). Unset = engine default (calibration already measured it
-#   optimal; use only for A/B tests).
-# Qwen models only; others warn and ignore the flags.
+# Patched into every model config on each start (setup.py has no persistent
+# flags for these). Qwen only; others ignore them.
 if [ -n "${XESTRATA_VRAM_RESERVE:-}" ]; then
   if ! [ "${XESTRATA_VRAM_RESERVE}" -eq "${XESTRATA_VRAM_RESERVE}" ] 2>/dev/null || [ "${XESTRATA_VRAM_RESERVE}" -lt 0 ]; then
     echo "XESTRATA_VRAM_RESERVE must be MiB, 0 or more, got '${XESTRATA_VRAM_RESERVE}'" >&2
@@ -83,8 +58,6 @@ if [ -n "${XESTRATA_POOL_WORKERS:-}" ]; then
   fi
 fi
 if [ -n "${XESTRATA_VRAM_RESERVE:-}${XESTRATA_PARALLEL:-}${XESTRATA_POOL_WORKERS:-}" ]; then
-  # PACKAGED mode (deb): model configs live under $XDG_CONFIG_HOME/xestrata,
-  # not in the read-only /usr/share/xestrata tree.
   for cfg in "${CONFIG_DIR}"/xestrata/xestrata-*.json; do
     [ -f "$cfg" ] || continue
     XESTRATA_VRAM_RESERVE="${XESTRATA_VRAM_RESERVE:-}" \
@@ -120,8 +93,6 @@ EOF
   done
 fi
 
-# Verify the exact serve flags with `xestrata --help` when bumping the image;
-# upstream documents `--host 0.0.0.0 --api-key <secret>` for remote access.
 if [ -n "${XESTRATA_API_KEY:-}" ]; then
   exec xestrata --host 0.0.0.0 --port 8095 --api-key "${XESTRATA_API_KEY}" --yes
 else

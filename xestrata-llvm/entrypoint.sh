@@ -1,7 +1,5 @@
 #!/bin/sh
-# Container entrypoint for XeStrata.
-# Runs the interactive setup once (non-interactive flags), then starts the
-# server in the foreground. Configuration is driven by chart values via env.
+# XeStrata entrypoint: run setup once, then serve.
 set -eu
 
 DATA_DIR="${XESTRATA_DATA_DIR:-/data}"
@@ -15,15 +13,7 @@ export XDG_DATA_HOME="${DATA_DIR}"
 
 mkdir -p "${DATA_DIR}" "${CONFIG_DIR}"
 
-# First start: fetch the model (60-110 GB) and write the server config.
-# Settings land under ${CONFIG_DIR}/xestrata, models under ${DATA_DIR}.
 if [ ! -f "${CONFIG_DIR}/xestrata/settings.json" ]; then
-  # Build mode, toolchain and vision are baked into the image (they must
-  # match engine/BUILD.json's stamp; this is a text-only image, the image
-  # encoders are not built); not configurable on purpose.
-  # XESTRATA_LOW_RAM (auto|on|off|resident|mmap) forces setup's low-RAM mode
-  # (experts from NVMe via the page cache instead of all in RAM); unset =
-  # auto, which only triggers on host RAM shortage, not on a container cap.
   LOW_RAM_ARGS=""
   if [ -n "${XESTRATA_LOW_RAM:-}" ]; then
     case "${XESTRATA_LOW_RAM}" in
@@ -41,21 +31,7 @@ if [ ! -f "${CONFIG_DIR}/xestrata/settings.json" ]; then
   fi
 fi
 
-# Optional engine tuning, patched into every installed model config after
-# setup and before serve, on every start (setup.py has no persistent flags
-# for these, so env is the only post-install lever):
-# - XESTRATA_VRAM_RESERVE=N: --vram-reserve-mib N (MiB of VRAM the engine
-#   leaves free; the expert cache takes that much less). Unset = 700.
-#   Raise for verify-window headroom on tight cards (e.g. 2048).
-# - XESTRATA_PARALLEL=N: "parallel": N (concurrent decodes, 2+; 1 removes
-#   the key = explicitly sequential). Unset = sequential. Each slot costs
-#   ~0.6 GB of VRAM from the expert cache at 32k int8 (more at larger
-#   contexts); where experts mostly run from CPU each request also gets
-#   10-25% slower (docs/BATCHING.md).
-# - XESTRATA_POOL_WORKERS=N: --pool-workers N (CPU threads computing
-#   experts). Unset = engine default (calibration already measured it
-#   optimal; use only for A/B tests).
-# Qwen models only; others warn and ignore the flags.
+# Patched into every model config on each start. Qwen only; others ignore them.
 if [ -n "${XESTRATA_VRAM_RESERVE:-}" ]; then
   if ! [ "${XESTRATA_VRAM_RESERVE}" -eq "${XESTRATA_VRAM_RESERVE}" ] 2>/dev/null || [ "${XESTRATA_VRAM_RESERVE}" -lt 0 ]; then
     echo "XESTRATA_VRAM_RESERVE must be MiB, 0 or more, got '${XESTRATA_VRAM_RESERVE}'" >&2
@@ -110,8 +86,6 @@ EOF
   done
 fi
 
-# Verify the exact serve flags with `xestrata --help` when bumping the image;
-# upstream documents `--host 0.0.0.0 --api-key <secret>` for remote access.
 if [ -n "${XESTRATA_API_KEY:-}" ]; then
   exec xestrata --host 0.0.0.0 --port 8095 --api-key "${XESTRATA_API_KEY}" --yes
 else

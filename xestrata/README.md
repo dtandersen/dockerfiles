@@ -72,7 +72,7 @@ docker run -d --name xestrata --device /dev/dri \
   -p 8095:8095 \
   -v xestrata-data:/data -v xestrata-config:/config \
   -e XESTRATA_MODEL=IQ3_S \
-  ghcr.io/dtandersen/xestrata:xe0.1.43.1
+  ghcr.io/dtandersen/xestrata:xe0.2.2-1
 ```
 
 On a host with an AMD GPU next to the Intel one, also hide its KFD
@@ -97,15 +97,15 @@ app at http://localhost:8095/v1.
 
 ```sh
 docker buildx build ./xestrata -t xestrata:local \
-  --build-arg XESTRATA_REF=xe0.1.43.1
+  --build-arg XESTRATA_REF=xe0.2.2-1
 ```
 
 Build args:
 
-- XESTRATA_REF - upstream git tag to install (default xe0.1.43.1).
+- XESTRATA_REF - upstream git tag to install (default xe0.2.2-1).
   Tag pushes to this repo install that version instead. The .deb file
   name is resolved via the release's SHA256SUMS, so release-count
-  suffixes (e.g. `0.1.43-2`) need no mapping.
+  suffixes (e.g. `0.2.2-1`) need no mapping.
 - XESTRATA_VARIANT - upstream package variant (default contrib-cuda13.1).
   `contrib-cuda12.4` keeps Pascal/Volta (sm_60/sm_61/sm_70) — a
   P100/P40/V100 takes cuda12.4. Newer GPUs run the newest PTX their
