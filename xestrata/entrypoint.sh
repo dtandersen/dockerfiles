@@ -60,6 +60,29 @@ if [ -n "${XESTRATA_POOL_WORKERS:-}" ]; then
     exit 1
   fi
 fi
+# --vram-free-mib is setup-time autodetect and goes stale across RAM/host changes.
+# Strip it on every start so serve re-detects fresh instead of reusing 7110.
+for cfg in "${CONFIG_DIR}"/xestrata/xestrata-*.json; do
+  [ -f "$cfg" ] || continue
+  /usr/bin/python3 - "$cfg" <<'EOF'
+import json, sys
+p = sys.argv[1]
+cfg = json.load(open(p, encoding="utf-8-sig"))
+args = cfg.get("args", [])
+out = []
+i = 0
+while i < len(args):
+    if args[i] == "--vram-free-mib":
+        i += 2
+        continue
+    out.append(args[i])
+    i += 1
+if out != args:
+    cfg["args"] = out
+    json.dump(cfg, open(p, "w", encoding="utf-8"), indent=1)
+    print(f"stripped --vram-free-mib from {p}")
+EOF
+done
 if [ -n "${XESTRATA_VRAM_RESERVE:-}${XESTRATA_PARALLEL:-}${XESTRATA_POOL_WORKERS:-}" ]; then
   for cfg in "${CONFIG_DIR}"/xestrata/xestrata-*.json; do
     [ -f "$cfg" ] || continue
