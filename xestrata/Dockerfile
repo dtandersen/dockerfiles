@@ -29,6 +29,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && curl -fsSLO "https://github.com/MistVVK/XeStrata/releases/download/${XESTRATA_REF}/${DEB}" \
     && grep -F " ${DEB}" SHA256SUMS | sha256sum -c - \
     && apt-get update && apt-get install -y --no-install-recommends "./${DEB}" mesa-vulkan-drivers \
+      libze1 libigc2 libigdfcl2 intel-opencl-icd ocl-icd-libopencl1 \
     && rm -f "./${DEB}" SHA256SUMS \
     && rm -rf /var/lib/apt/lists/* \
     && command -v xestrata
