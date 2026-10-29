@@ -60,6 +60,12 @@ if [ -n "${XESTRATA_POOL_WORKERS:-}" ]; then
     exit 1
   fi
 fi
+if [ -n "${XESTRATA_DRAFT_VOCAB:-}" ]; then
+  case "${XESTRATA_DRAFT_VOCAB}" in
+    en|cjk|cyrillic|fr) ;;
+    *) echo "XESTRATA_DRAFT_VOCAB must be en|cjk|cyrillic|fr, got '${XESTRATA_DRAFT_VOCAB}'" >&2; exit 1 ;;
+  esac
+fi
 # --vram-free-mib is a setup-time autodetect that goes stale after RAM or host
 # changes; strip it so serve re-detects.
 for cfg in "${CONFIG_DIR}"/xestrata/xestrata-*.json; do
@@ -83,12 +89,13 @@ if out != args:
     print(f"stripped --vram-free-mib from {p}")
 EOF
 done
-if [ -n "${XESTRATA_VRAM_RESERVE:-}${XESTRATA_PARALLEL:-}${XESTRATA_POOL_WORKERS:-}" ]; then
+if [ -n "${XESTRATA_VRAM_RESERVE:-}${XESTRATA_PARALLEL:-}${XESTRATA_POOL_WORKERS:-}${XESTRATA_DRAFT_VOCAB:-}" ]; then
   for cfg in "${CONFIG_DIR}"/xestrata/xestrata-*.json; do
     [ -f "$cfg" ] || continue
     XESTRATA_VRAM_RESERVE="${XESTRATA_VRAM_RESERVE:-}" \
     XESTRATA_PARALLEL="${XESTRATA_PARALLEL:-}" \
     XESTRATA_POOL_WORKERS="${XESTRATA_POOL_WORKERS:-}" \
+    XESTRATA_DRAFT_VOCAB="${XESTRATA_DRAFT_VOCAB:-}" \
     /usr/bin/python3 - "$cfg" <<'EOF'
 import json, os, sys
 p = sys.argv[1]
@@ -112,6 +119,10 @@ if os.environ["XESTRATA_PARALLEL"]:
         cfg.pop("parallel", None)
 if os.environ["XESTRATA_POOL_WORKERS"]:
     set_arg(args, "--pool-workers", os.environ["XESTRATA_POOL_WORKERS"])
+# A top-level key, not a serve arg: the start copies data/draft_vocab_<name>.bin
+# into the --mtp folder from it, and re-setups keep it.
+if os.environ["XESTRATA_DRAFT_VOCAB"]:
+    cfg["draft_vocab"] = os.environ["XESTRATA_DRAFT_VOCAB"]
 cfg["args"] = args
 json.dump(cfg, open(p, "w", encoding="utf-8"), indent=1)
 print(f"tuned {p}")
