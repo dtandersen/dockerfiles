@@ -24,7 +24,7 @@ maintainers:
   - name: dtandersen
 
 sources:
-  - https://github.com/dtandersen/valheim-docker
+  - https://github.com/dtandersen/dockerfiles/tree/main/images/valheim
   - https://developer.valvesoftware.com/wiki/SteamCMD
 
 # The common chart provides the workload, service, storage, probe and security

@@ -2,7 +2,7 @@
 
 Helm chart for the [Valheim](https://valheim.com/support/a-guide-to-dedicated-servers/)
 dedicated server. It runs the
-[`valheim`](https://github.com/dtandersen/valheim-docker) image, whose
+[`valheim`](https://github.com/dtandersen/dockerfiles/tree/main/images/valheim) image, whose
 entrypoint installs/updates Steam app `896660` with SteamCMD and launches the
 server. It is built on the TrueCharts
 [`common`](https://truecharts.org/common/) library chart.
@@ -127,6 +127,6 @@ The `common` dependency is bundled in the published chart package.
 ## Upstream
 
 - Valheim dedicated server guide: <https://valheim.com/support/a-guide-to-dedicated-servers/>
-- Image source: <https://github.com/dtandersen/valheim-docker>
-- Default image: <https://github.com/dtandersen/valheim-docker/pkgs/container/valheim>
+- Image source: <https://github.com/dtandersen/dockerfiles/tree/main/images/valheim>
+- Default image: <https://github.com/users/dtandersen/packages/container/valheim>
 - TrueCharts common: <https://truecharts.org/common/>

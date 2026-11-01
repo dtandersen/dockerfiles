@@ -1,0 +1,5 @@
+# Ignore everything, then allow only the build inputs.
+*
+
+!Dockerfile
+!entrypoint.sh

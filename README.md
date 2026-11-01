@@ -12,6 +12,7 @@ chart index by CI.
 - [images/xestrata-llvm](images/xestrata-llvm/) — XeStrata AI chat on Intel GPUs (source build with intel/llvm --contrib).
 - [images/forgejo-runner](images/forgejo-runner/) — Forgejo Actions runner that stays up as a daemon.
 - [images/hl2270dw-ipp-bridge](images/hl2270dw-ipp-bridge/) — CUPS IPP-Everywhere bridge for Brother HL-2270DW (Windows Protected Print).
+- [images/valheim](images/valheim/) — Valheim dedicated server, installed and updated with SteamCMD.
 
 Build one from the repo root, for example with
 `docker build -t xestrata ./images/xestrata`.
