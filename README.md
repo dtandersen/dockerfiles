@@ -13,6 +13,7 @@ chart index by CI.
 - [images/forgejo-runner](images/forgejo-runner/) — Forgejo Actions runner that stays up as a daemon.
 - [images/hl2270dw-ipp-bridge](images/hl2270dw-ipp-bridge/) — CUPS IPP-Everywhere bridge for Brother HL-2270DW (Windows Protected Print).
 - [images/valheim](images/valheim/) — Valheim dedicated server, installed and updated with SteamCMD.
+- [images/stationeers](images/stationeers/) — Stationeers dedicated server, installed and updated with SteamCMD.
 
 Build one from the repo root, for example with
 `docker build -t xestrata ./images/xestrata`.
@@ -50,4 +51,6 @@ Two tag namespaces, deliberately disjoint — a tag push ignores a workflow's
 - **Chart release:** `<chart>-<version>`, e.g. `xestrata-0.1.1`, created by
   chart-releaser from `Chart.yaml` — never pushed by hand.
 
-Branch pushes publish the branch name (`main`).
+Branch pushes publish the branch name (`main`), except for an image a running
+deployment pins by tag (`valheim`, `stationeers`): those publish only from a
+release tag, and a branch push just builds them as a check.

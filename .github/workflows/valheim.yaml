@@ -1,27 +1,31 @@
-# Builds valheim and pushes it to GHCR.
+# Builds valheim and publishes it to GHCR from a release tag only.
 #
-# Tags: branch pushes publish the branch name (main) and, for the default
-# branch, `latest`. Release tags publish the version and are named
-# <image>-v<version>, e.g. valheim-v1.0.0 — then bump `image.tag` (and
-# appVersion) in charts/valheim to that tag. The `v` keeps image releases
-# apart from chart releases, which chart-releaser names <chart>-<version>
-# (e.g. valheim-0.1.1, from Chart.yaml).
+# A push to `main` builds the image as a check and publishes nothing. The
+# running valheim server pulls ghcr.io/dtandersen/valheim:latest
+# (charts/valheim/values.yaml), so publishing from a branch push would let an
+# ordinary commit change what the server runs. Releases are explicit: tag
+# <image>-v<version>, e.g. valheim-v1.0.0, which publishes image tag 1.0.0.
+# Then bump `image.tag` (and appVersion) in charts/valheim in the same commit.
 #
-# A tag push ignores `paths:` filters, so the tag glob below is the only thing
-# selecting this workflow. Without the image prefix a bare 1.0.0 would build
-# every image in this repo.
+# The `v` keeps image releases apart from chart releases, which chart-releaser
+# names <chart>-<version> (e.g. valheim-0.1.1, from Chart.yaml). A tag push
+# ignores `paths:`, so the tag glob below is the only thing selecting this
+# workflow; without the image prefix a bare 1.0.0 would build every image in
+# this repo.
 #
-# The image name stays `valheim` (not `valheim-docker`), so the package,
-# ghcr.io/dtandersen/valheim, is the same one the retired valheim-docker repo
-# published to; charts/valheim keeps pulling it unchanged.
+# The image name stays `valheim` (not `valheim-docker`): releases go to the
+# package ghcr.io/dtandersen/valheim that the retired valheim-docker repo
+# created, which charts/valheim keeps pulling unchanged. That package must
+# grant this repo write access (package settings -> Manage Actions access),
+# else the release push fails with `denied: write_package`.
 #
 # linux/amd64 only: SteamCMD and the Valheim server binary are x86, and the
 # game files SteamCMD installs at runtime are too.
 #
 # Auth uses the automatic GITHUB_TOKEN (no manual secrets). The package must be
-# public (ghcr.io/dtandersen → valheim → Package settings → Change visibility);
-# the cluster pulls it anonymously. A private package would need an
-# imagePullSecret on the workload instead.
+# public (ghcr.io/dtandersen -> valheim -> Package settings -> Change
+# visibility); the cluster pulls it anonymously. A private package would need
+# an imagePullSecret on the workload instead.
 
 name: valheim
 
@@ -54,14 +58,12 @@ jobs:
         with:
           images: ${{ env.IMAGE }}
           tags: |
-            # main stays the rolling tag charts/valheim pins, latest is kept
-            # for anyone pulling the tag the valheim-docker repo published.
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=branch
-            # Release tag valheim-v1.0.0 -> image tag 1.0.0.
+            # Release tag valheim-v1.0.0 -> image tag 1.0.0. No branch or
+            # `latest` tag: those are only pulled by a deployment, so they
+            # must not move on a commit.
             type=match,pattern=valheim-v(.*),group=1
-            # Fallback so manual dispatches (neither branch nor tag ref)
-            # still produce a tag.
+            # Only consulted for a manual dispatch from a non-release ref,
+            # which does not push anyway.
             type=sha,format=short
 
       - uses: docker/login-action@v3
@@ -74,7 +76,8 @@ jobs:
         with:
           context: images/valheim
           platforms: linux/amd64
-          push: true
+          # Publish from a release tag only; branch pushes are a build check.
+          push: ${{ startsWith(github.ref, 'refs/tags/valheim-v') }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha

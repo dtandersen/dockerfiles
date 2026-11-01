@@ -98,6 +98,8 @@ The image sets `SteamAppId=892970` (Valheim's game id, distinct from the
 
 Images are built by
 [.github/workflows/valheim.yaml](../../.github/workflows/valheim.yaml) on every
-push to `main` that touches `images/valheim/`, on release tags, and on demand.
-Tags produced: `main` and `latest` (default branch), the version from a
-`valheim-v<version>` tag, and the short SHA.
+push to `main` that touches `images/valheim/` and on demand, but those builds
+are only a check: nothing is published. Only a release tag
+`valheim-v<version>` publishes, as image tag `<version>`. Branch and `latest`
+tags are never moved by a commit, because `charts/valheim` pulls `:latest` and
+a running server must not change under an ordinary push.

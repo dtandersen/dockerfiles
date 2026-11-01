@@ -1,0 +1,84 @@
+# Builds stationeers and publishes it to GHCR from a release tag only.
+#
+# A push to `main` builds the image as a check and publishes nothing. Releases
+# are explicit: tag <image>-v<version>, e.g. stationeers-v0.2.1782.8186, which
+# publishes image tag 0.2.1782.8186 (the shape SteamCMD app versions use
+# upstream). Then bump `image.tag` (and appVersion) wherever the chart or
+# helmfile pins this image, in the same commit.
+#
+# The `v` keeps image releases apart from chart releases, which chart-releaser
+# names <chart>-<version> (e.g. stationeers-0.2.0, from Chart.yaml). A tag push
+# ignores `paths:`, so the tag glob below is the only thing selecting this
+# workflow; without the image prefix a bare 1.0.0 would build every image in
+# this repo.
+#
+# The image is ghcr.io/dtandersen/stationeers. This repo owns that package: it
+# is created here by the first release push, so the automatic GITHUB_TOKEN has
+# write access to it. The retired stationeers-docker repo's package
+# (ghcr.io/dtandersen/stationeers-docker) is left alone; the running deployment
+# in ninerealms-helmfile still pulls :master from it, and moving that release
+# here means pointing it at a published version tag of this package.
+#
+# linux/amd64 only: the steamcmd/steamcmd base and the Stationeers server binary
+# are x86.
+#
+# Auth uses the automatic GITHUB_TOKEN (no manual secrets). The package must be
+# public (ghcr.io/dtandersen -> stationeers -> Package settings -> Change
+# visibility); the cluster pulls it anonymously. A private package would need an
+# imagePullSecret on the workload instead.
+
+name: stationeers
+
+on:
+  push:
+    branches: [main]
+    tags: ['stationeers-v*']
+    paths:
+      - images/stationeers/**
+      - .github/workflows/stationeers.yaml
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ghcr.io/dtandersen/stationeers
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            # Release tag stationeers-v0.2.1782.8186 -> image tag
+            # 0.2.1782.8186. No branch, `latest` or `master` tag: those are
+            # what a deployment would pin, so they must not move on a commit.
+            type=match,pattern=stationeers-v(.*),group=1
+            # Only consulted for a manual dispatch from a non-release ref,
+            # which does not push anyway.
+            type=sha,format=short
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: images/stationeers
+          platforms: linux/amd64
+          # Publish from a release tag only; branch pushes are a build check.
+          push: ${{ startsWith(github.ref, 'refs/tags/stationeers-v') }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
