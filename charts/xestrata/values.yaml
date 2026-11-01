@@ -1,0 +1,99 @@
+# Default values for the xestrata chart.
+
+xestrata:
+  # Model family: "" (original Qwen3.8-Flash-Next), coder, swift, unsloth,
+  # ornith, llmjp. Empty means the original release.
+  family: ""
+  # Quant size within the family. IQ2_XS is the recommended default for a
+  # ~48 GB RAM host; IQ3_S needs ~64 GB free. Coder only ships IQ1_M.
+  model: IQ2_XS
+  contextSize: 32768
+  # Setup choice for the image encoder: "yes" or "no".
+  vision: "no"
+  # Must match persistence.data.mountPath.
+  dataDir: /data
+  # Must match persistence.config.mountPath. Holds the per-model
+  # xestrata-*.json written by setup and never recompiled.
+  configDir: /config
+  # Optional API key, consumed by the entrypoint as XESTRATA_API_KEY.
+  # Empty leaves the server unauthenticated.
+  apiKey: ""
+
+image:
+  repository: ghcr.io/dtandersen/xestrata
+  tag: main
+  pullPolicy: IfNotPresent
+
+secret:
+  secrets:
+    # Stays enabled: common renders envFrom without an optional flag, so a
+    # missing Secret breaks container creation. An empty key means no auth.
+    enabled: true
+    data:
+      XESTRATA_API_KEY: "{{ .Values.xestrata.apiKey }}"
+
+persistence:
+  data:
+    enabled: true
+    mountPath: /data
+  config:
+    enabled: true
+    mountPath: /config
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 32Gi
+    gpu.intel.com/xe: 1
+  limits:
+    memory: 32Gi
+    gpu.intel.com/xe: 1
+
+service:
+  main:
+    ports:
+      main:
+        port: 80
+        # The image always listens on 8095; there is no port override.
+        targetPort: 8095
+
+workload:
+  main:
+    replicas: 1
+    strategy: Recreate
+    podSpec:
+      containers:
+        main:
+          envFrom:
+            - secretRef:
+                name: secrets
+                optional: true
+          env:
+            XDG_CONFIG_HOME: "{{ .Values.xestrata.configDir }}"
+            XDG_DATA_HOME: "{{ .Values.xestrata.dataDir }}"
+            XESTRATA_CONFIG_DIR: "{{ .Values.xestrata.configDir }}"
+            XESTRATA_DATA_DIR: "{{ .Values.xestrata.dataDir }}"
+            XESTRATA_FAMILY: "{{ .Values.xestrata.family }}"
+            XESTRATA_MODEL: "{{ .Values.xestrata.model }}"
+            XESTRATA_CONTEXT: "{{ .Values.xestrata.contextSize }}"
+            XESTRATA_VISION: "{{ .Values.xestrata.vision }}"
+          command:
+            - /entrypoint.sh
+          probes:
+            liveness:
+              path: /health
+              spec:
+                initialDelaySeconds: 1800
+                periodSeconds: 10
+                failureThreshold: 3
+            readiness:
+              path: /health
+              spec:
+                initialDelaySeconds: 60
+                periodSeconds: 10
+                failureThreshold: 360
+            startup:
+              path: /health
+              spec:
+                periodSeconds: 15
+                failureThreshold: 480

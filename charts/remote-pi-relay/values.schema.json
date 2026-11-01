@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dtandersen.github.io/dockerfiles/remote-pi-relay/values.schema.json",
+  "title": "remote-pi-relay",
+  "description": "Configuration for the Remote Pi self-hosted relay chart. In addition to the keys defined here, all values of the TrueCharts 'common' chart (service, workload, podOptions, persistence, ...) are accepted - see https://truecharts.org/common/",
+  "type": "object",
+  "properties": {
+    "relay": {
+      "type": "object",
+      "description": "Relay listener and storage settings.",
+      "properties": {
+        "port": {
+          "type": "integer",
+          "description": "TCP port serving WS upgrade, /health, and /mesh/* (same port).",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "dbPath": {
+          "type": "string",
+          "description": "SQLite path for Owner-signed mesh blobs, e.g. /data/mesh.db.",
+          "minLength": 1
+        },
+        "logLevel": {
+          "type": "string",
+          "description": "RUST_LOG filter, e.g. info, debug, warn. Empty means image default."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

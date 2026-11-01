@@ -1,0 +1,43 @@
+apiVersion: v2
+name: valheim
+description: Valheim dedicated server, installed and updated with SteamCMD
+# Application charts are a collection of templates that can be packaged into versioned archives
+# to be deployed.
+type: application
+
+# This is the chart version. This version number should be incremented each time you make changes
+# to the chart and its templates, including the app version.
+# Versions are expected to follow Semantic Versioning (https://semver.org/).
+version: 0.1.0
+
+# Set by the image tag, not by a released application version.
+appVersion: "latest"
+
+home: https://valheim.com/support/a-guide-to-dedicated-servers/
+
+keywords:
+  - valheim
+  - steamcmd
+  - game-server
+
+maintainers:
+  - name: dtandersen
+
+sources:
+  - https://github.com/dtandersen/valheim-docker
+  - https://developer.valvesoftware.com/wiki/SteamCMD
+
+# The common chart provides the workload, service, storage, probe and security
+# templates and their defaults. Valheim-specific configuration is set in this
+# chart's values.yaml on top of those defaults.
+# https://truecharts.org/common/
+dependencies:
+  - name: common
+    version: 29.14.2
+    repository: oci://oci.trueforge.org/truecharts
+    condition: ""
+    alias: ""
+    tags: []
+    import-values: []
+
+deprecated: false

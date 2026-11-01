@@ -1,0 +1,27 @@
+apiVersion: v2
+name: remote-pi-relay
+description: Self-hosted WebSocket relay for Remote Pi (Pi agent mesh + mobile control plane)
+type: application
+version: 0.1.0
+appVersion: "v0.3.1"
+home: https://github.com/jacobaraujo7/remote_pi/tree/main/relay
+keywords:
+  - remote-pi
+  - relay
+  - websocket
+  - pi
+  - agent-mesh
+maintainers:
+  - name: dtandersen
+sources:
+  - https://github.com/jacobaraujo7/remote_pi/tree/main/relay
+  - https://hub.docker.com/r/jacobmoura7/remote-pi-relay
+dependencies:
+  - name: common
+    version: 29.14.2
+    repository: oci://oci.trueforge.org/truecharts
+    condition: ""
+    alias: ""
+    tags: []
+    import-values: []
+deprecated: false

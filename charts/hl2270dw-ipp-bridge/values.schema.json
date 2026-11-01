@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dtandersen.github.io/dockerfiles/hl2270dw-ipp-bridge/values.schema.json",
+  "title": "hl2270dw-ipp-bridge",
+  "description": "Configuration for the Brother HL-2270DW CUPS IPP-Everywhere bridge chart. In addition to the keys defined here, all values of the TrueCharts 'common' chart (service, workload, podOptions, persistence, ...) are accepted - see https://truecharts.org/common/",
+  "type": "object",
+  "properties": {
+    "printer": {
+      "type": "object",
+      "description": "Physical printer and CUPS queue settings.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "CUPS queue name, also the IPP resource path (ipp://<svc>:631/printers/<name>).",
+          "minLength": 1
+        },
+        "deviceUri": {
+          "type": "string",
+          "description": "CUPS backend URI, e.g. socket://192.168.100.1:9100.",
+          "minLength": 1
+        },
+        "ppd": {
+          "type": "string",
+          "description": "PPD override, e.g. drv:///brlaser.drv/brl2370d.ppd. Empty means auto-pick the certified family (2370dn > 2270dw > brlaser > generpcl)."
+        },
+        "uuid": {
+          "type": "string",
+          "description": "IPP Everywhere UUID advertised by the queue (exposed as PRINTER_UUID). Windows caches this per printer, so keep it stable across redeploys. Must match the UUID in the Avahi _ipps TXT record used for discovery. Set per deployment; the committed value is only an example placeholder.",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

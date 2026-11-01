@@ -1,0 +1,97 @@
+# Default values for hl2270dw-ipp-bridge.
+# The printer itself is IPP 1.0 + PCL-only (no PDF/PWG-Raster, not Mopria
+# certified). This chart fronts it with CUPS IPP 2.0/2.1 + mopria-certified
+# 1.3. Windows sends PDF to the bridge, CUPS renders PDF -> PCL via
+# Ghostscript + brlaser, then forwards RAW to the printer.
+
+printer:
+  # CUPS queue name, also the IPP resource path: ipp://<svc>:631/printers/<name>
+  name: HL2270DW
+  # Backend URI. socket/9100 RAW is most reliable for HL-2270DW.
+  # Change if your printer DHCP moves.
+  deviceUri: socket://192.168.100.1:9100
+  # PPD override, e.g. drv:///brlaser.drv/brl2370d.ppd
+  # Empty means auto-pick certified-family 2370dn > 2270dw > brlaser > generpcl
+  # (see image entrypoint). Default advertises a Mopria-certified model.
+  ppd: ""
+  # Example placeholder. Override per deployment, must match Avahi TXT UUID.
+  uuid: "079ac6e8-ea74-4414-9cc2-0553b5a414c3"
+
+image:
+  repository: ghcr.io/dtandersen/hl2270dw-ipp-bridge
+  tag: main
+  pullPolicy: IfNotPresent
+
+service:
+  main:
+    enabled: true
+    primary: true
+    # Windows must reach IPP on the LAN. ClusterIP alone is not enough.
+    # LoadBalancer (MetalLB) gives a stable LAN IP; NodePort works without MetalLB.
+    type: LoadBalancer
+    # Uncomment + set to a reserved LAN IP from your MetalLB pool, same subnet as Windows clients.
+    # loadBalancerIP: 192.168.100.10
+    ports:
+      main:
+        enabled: true
+        primary: true
+        # External 631 keeps Windows URLs stable (http://<bridge-ip>:631/...).
+        # The container itself listens on unprivileged 8631 (no root, no CAPs).
+        port: 631
+        targetPort: 8631
+        protocol: tcp
+
+workload:
+  main:
+    # Single CUPS spool, avoid two writers.
+    strategy: Recreate
+    podSpec:
+      containers:
+        main:
+          env:
+            PRINTER_NAME: "{{ .Values.printer.name }}"
+            PRINTER_DEVICE_URI: "{{ .Values.printer.deviceUri }}"
+            PRINTER_PPD: "{{ .Values.printer.ppd }}"
+            PRINTER_UUID: "{{ .Values.printer.uuid }}"
+            CUPS_PORT: "8631"
+          probes:
+            liveness:
+              enabled: true
+              type: tcp
+              port: 8631
+            readiness:
+              enabled: true
+              type: tcp
+              port: 8631
+            startup:
+              enabled: true
+              type: tcp
+              port: 8631
+
+persistence:
+  cups-etc:
+    enabled: true
+    type: emptyDir
+    mountPath: /etc/cups
+  cups-spool:
+    enabled: true
+    type: emptyDir
+    mountPath: /var/spool/cups
+  cups-cache:
+    enabled: true
+    type: emptyDir
+    mountPath: /var/cache/cups
+
+# Run as lp (uid/gid 7, created by the cups package). CUPS owns its spool/cache
+# dirs as lp already, so no useradd/chown hacks. Listens on unprivileged 8631.
+# Minimal securityContext override (TrueCharts defaults to 568):
+securityContext:
+  container:
+    runAsUser: 7
+    runAsGroup: 7
+    PUID: 7
+    runAsNonRoot: true
+    readOnlyRootFilesystem: false
+  pod:
+    fsGroup: 7
+    fsGroupChangePolicy: OnRootMismatch

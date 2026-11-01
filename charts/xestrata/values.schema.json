@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dtandersen.github.io/dockerfiles/xestrata/values.schema.json",
+  "title": "xestrata",
+  "description": "Configuration for the XeStrata SYCL inference server chart. In addition to the keys defined here, all values of the TrueCharts 'common' chart (service, ingress, hpa, podOptions, addons, ...) are accepted - see https://truecharts.org/common/",
+  "type": "object",
+  "properties": {
+    "xestrata": {
+      "type": "object",
+      "description": "XeStrata-specific settings.",
+      "properties": {
+        "family": {
+          "type": "string",
+          "description": "Model family: empty (original), coder, swift, unsloth, ornith, llmjp."
+        },
+        "model": {
+          "type": "string",
+          "description": "Quant size within the family (e.g. IQ2_XS, IQ3_S, Q2_0).",
+          "minLength": 1
+        },
+        "contextSize": {
+          "type": "integer",
+          "description": "Context length configured at setup time.",
+          "minimum": 4096
+        },
+        "vision": {
+          "type": "string",
+          "description": "Whether setup installs the image encoder: yes or no.",
+          "enum": ["yes", "no"]
+        },
+        "dataDir": {
+          "type": "string",
+          "description": "Container path for the weight/cache mount; must match persistence.data.mountPath."
+        },
+        "configDir": {
+          "type": "string",
+          "description": "Container path for the setup config mount; must match persistence.config.mountPath."
+        },
+        "apiKey": {
+          "type": "string",
+          "description": "Optional API key, stored in a Secret when set."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

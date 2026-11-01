@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dtandersen.github.io/dockerfiles/vllm/values.schema.json",
+  "title": "vllm",
+  "description": "Configuration for the vLLM OpenAI-compatible API server chart. In addition to the keys defined here, all values of the TrueCharts 'common' chart (service, ingress, hpa, podOptions, addons, ...) are accepted - see https://truecharts.org/common/",
+  "type": "object",
+  "properties": {
+    "vllm": {
+      "type": "object",
+      "description": "vLLM-specific settings.",
+      "properties": {
+        "model": {
+          "type": "string",
+          "description": "Model to serve: a Hugging Face Hub repo id or a local path on a mounted volume.",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

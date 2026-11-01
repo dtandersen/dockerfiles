@@ -1,0 +1,26 @@
+apiVersion: v2
+name: hl2270dw-ipp-bridge
+description: CUPS IPP-Everywhere bridge for the Brother HL-2270DW, so Windows 11 Protected Print mode can use it
+type: application
+version: 0.1.1
+appVersion: "main"
+home: https://github.com/dtandersen/dockerfiles/tree/main/hl2270dw-ipp-bridge
+keywords:
+  - printer
+  - ipp
+  - cups
+  - brother
+  - windows-protected-print
+maintainers:
+  - name: dtandersen
+sources:
+  - https://github.com/dtandersen/dockerfiles/tree/main/hl2270dw-ipp-bridge
+dependencies:
+  - name: common
+    version: 29.14.2
+    repository: oci://oci.trueforge.org/truecharts
+    condition: ""
+    alias: ""
+    tags: []
+    import-values: []
+deprecated: false

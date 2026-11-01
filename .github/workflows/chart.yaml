@@ -1,0 +1,61 @@
+name: Release Charts
+
+# Publishes every chart under charts/ to the gh-pages index.
+#
+# Moved here from the standalone `charts` repo. The index is served from this
+# repo's Pages site, so the `helm repo add` URL changes from
+# https://dtandersen.github.io/charts to https://dtandersen.github.io/dockerfiles
+# (or back to .../charts if this repo is later renamed). Repo rename aside,
+# helm follows no redirects for repo indexes.
+#
+# Chart release tags are <chart>-<version> (e.g. xestrata-0.1.1), so they do
+# not match the image workflows' `tags: ['[0-9]*']` trigger.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - charts/**
+      - .github/workflows/chart.yaml
+  workflow_dispatch:
+
+jobs:
+  release:
+    # depending on default permission settings for your org (contents being read-only or read-write for workloads), you will have to add permissions
+    # see: https://docs.github.com/en/actions/security-guides/automatic-token-authentication#modifying-the-permissions-for-the-github_token
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # charts/netbird is a submodule; check it out so dependency
+          # vendoring and chart-releaser see the chart contents.
+          submodules: true
+
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      # Dependency packages (*.tgz) are not committed, so vendor them before
+      # chart-releaser packages each chart.
+      - name: Build chart dependencies
+        run: |
+          for chart in charts/*/; do
+            if [ -f "${chart}Chart.yaml" ]; then
+              echo "Building dependencies for ${chart}"
+              helm dependency build "$chart"
+            fi
+          done
+
+      - name: Run chart-releaser
+        uses: helm/chart-releaser-action@v1.7.0
+        with:
+          # Don't fail on a chart whose release already exists.
+          skip_existing: true
+        env:
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"

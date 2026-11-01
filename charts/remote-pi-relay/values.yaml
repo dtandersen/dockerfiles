@@ -1,0 +1,72 @@
+# Default values for remote-pi-relay.
+# Self-hosted WebSocket relay for Remote Pi. Single port serves WS upgrade
+# (`/`), `/health`, and `/mesh/<owner_pk_hash>`. Backed by SQLite at
+# /data/mesh.db — keep it on a PVC so membership blobs survive restarts.
+# Upstream docs: https://github.com/jacobaraujo7/remote_pi/blob/main/relay/README.md
+
+relay:
+  # TCP port serving WS + /health + /mesh/* (same port).
+  port: 3000
+  # SQLite path for Owner-signed mesh blobs. Parent dir is created on boot.
+  dbPath: /data/mesh.db
+  # RUST_LOG filter, e.g. info, debug, warn. Empty means image default.
+  logLevel: info
+
+image:
+  repository: jacobmoura7/remote-pi-relay
+  tag: v0.3.1
+  pullPolicy: IfNotPresent
+
+service:
+  main:
+    enabled: true
+    primary: true
+    type: ClusterIP
+    ports:
+      main:
+        enabled: true
+        primary: true
+        port: 3000
+        targetPort: 3000
+        protocol: tcp
+
+workload:
+  main:
+    enabled: true
+    primary: true
+    # Single SQLite writer (mesh.db in rollback-journal mode).
+    strategy: Recreate
+    podSpec:
+      containers:
+        main:
+          enabled: true
+          primary: true
+          env:
+            REMOTEPI_RELAY_PORT: "{{ .Values.relay.port }}"
+            REMOTEPI_MESH_DB_PATH: "{{ .Values.relay.dbPath }}"
+            RUST_LOG: "{{ .Values.relay.logLevel }}"
+          probes:
+            liveness:
+              enabled: true
+              type: http
+              port: 3000
+              path: /health
+            readiness:
+              enabled: true
+              type: http
+              port: 3000
+              path: /health
+            startup:
+              enabled: true
+              type: http
+              port: 3000
+              path: /health
+
+persistence:
+  data:
+    enabled: true
+    type: pvc
+    size: 1Gi
+    accessModes: ReadWriteOnce
+    mountPath: /data
+    retain: true

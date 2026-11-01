@@ -1,0 +1,6 @@
+# Helm chart dependency packages are vendored by CI (`helm dependency build`), not committed.
+*.tgz
+
+# chart-releaser working directories
+.cr-release-packages/
+.cr-index/

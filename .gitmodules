@@ -1,0 +1,4 @@
+[submodule "charts/netbird"]
+	path = charts/netbird
+	url = https://github.com/dtandersen/helm-netbird.git
+	branch = homelab

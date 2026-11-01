@@ -1,0 +1,4 @@
+# common.yaml
+
+{{/* Make sure all variables are set properly */}}
+{{- include "tc.v1.common.loader.all" . }}

@@ -1,0 +1,51 @@
+apiVersion: v2
+name: vllm
+description: vLLM - a fast and easy deployment framework for large language models, exposing an OpenAI-compatible API
+# A chart can be either an 'application' or a 'library' chart.
+#
+# Application charts are a collection of templates that can be packaged into versioned archives
+# to be deployed.
+#
+# Library charts provide useful utilities and functions for the chart developer. They're included as
+# a dependency of an application chart to inject those utilities and functions into the rendering
+# pipeline. Library charts do not define any templates and therefore cannot be deployed on their own.
+type: application
+
+# This is the chart version. This version number should be incremented each time you make changes
+# to the chart and its templates, including the app version.
+# Versions are expected to follow Semantic Versioning (https://semver.org/).
+version: 0.1.0
+
+# This is the version of vLLM the chart deploys by default.
+appVersion: "0.27.1"
+
+home: https://vllm.ai
+
+keywords:
+  - vllm
+  - llm
+  - inference
+  - openai
+  - machine-learning
+
+maintainers:
+  - name: dtandersen
+
+sources:
+  - https://github.com/vllm-project/vllm
+  - https://hub.docker.com/r/vllm/vllm-openai
+
+# Common chart provides the templates (workload, service, storage, probes, ...)
+# and their default values. All application specific configuration is done in
+# this chart's values.yaml on top of those defaults.
+# https://truecharts.org/common/
+dependencies:
+  - name: common
+    version: 29.14.2
+    repository: oci://oci.trueforge.org/truecharts
+    condition: ""
+    alias: ""
+    tags: []
+    import-values: []
+
+deprecated: false

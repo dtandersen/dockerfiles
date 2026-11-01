@@ -1,0 +1,46 @@
+# yaml-language-server: $schema=./values.schema.json
+vllm:
+  model: Qwen/Qwen3-4B
+
+image:
+  pullPolicy: IfNotPresent
+  repository: vllm/vllm-openai
+  tag: v0.27.1
+
+persistence:
+  hf-cache:
+    enabled: true
+    mountPath: /data
+
+service:
+  main:
+    ports:
+      main:
+        port: 80
+        targetPort: 8000
+
+workload:
+  main:
+    podSpec:
+      containers:
+        main:
+          args:
+            - serve
+            - "{{ .Values.vllm.model }}"
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8000"
+          probes:
+            liveness:
+              type: http
+              path: /health
+            readiness:
+              type: http
+              path: /health
+            startup:
+              type: http
+              path: /health
+              spec:
+                failureThreshold: 240
+                periodSeconds: 15

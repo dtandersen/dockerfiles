@@ -1,0 +1,106 @@
+image:
+  repository: ghcr.io/dtandersen/valheim
+  tag: latest
+  pullPolicy: IfNotPresent
+
+valheim:
+  update: true
+  verify: true
+  name: Valheim
+  port: 2456
+  public: false
+  world: Dedicated
+  password: ""
+  saveInterval: 1800
+  backups: 4
+  backupShort: 7200
+  backupLong: 43200
+  crossplay: false
+  administrators: []
+  additionalArgs: ""
+
+# Random whenever valheim.password is empty, so an unset password rotates and
+# nudges you to set one.
+secret:
+  password:
+    enabled: true
+    data:
+      password: "{{ .Values.valheim.password | default (randAlphaNum 8) }}"
+
+# SteamCMD writes to its install directory and $HOME, so the root filesystem
+# cannot be read-only. Everything else uses the TrueCharts defaults.
+securityContext:
+  container:
+    readOnlyRootFilesystem: false
+
+persistence:
+  data:
+    enabled: true
+    mountPath: /data
+
+service:
+  main:
+    ports:
+      main:
+        port: 2456
+        protocol: udp
+      query:
+        enabled: true
+        port: 2457
+        protocol: udp
+
+# Memory request equals the limit so the server can never be evicted for using
+# more than it requested. CPU has no limit (0 renders none) so the server can
+# use whatever is free.
+resources:
+  requests:
+    cpu: 75m
+    memory: 6Gi
+  limits:
+    cpu: 0
+    memory: 6Gi
+
+podOptions:
+  # The common chart default PVC podAffinity leaves the first replica unschedulable.
+  defaultAffinity: false
+  # Valheim saves on SIGINT, which Kubernetes does not send by default.
+  terminationGracePeriodSeconds: 120
+
+workload:
+  main:
+    strategy: Recreate
+    podSpec:
+      containers:
+        main:
+          env:
+            STEAMCMD_UPDATE: "{{ .Values.valheim.update }}"
+            STEAMCMD_VALIDATE: "{{ .Values.valheim.verify }}"
+            SERVER_NAME: "{{ .Values.valheim.name }}"
+            SERVER_PORT: "{{ .Values.valheim.port }}"
+            SERVER_PUBLIC: "{{ if .Values.valheim.public }}1{{ else }}0{{ end }}"
+            SERVER_WORLD_NAME: "{{ .Values.valheim.world }}"
+            SERVER_PW:
+              secretKeyRef:
+                name: password
+                key: password
+            SERVER_SAVE_INTERVAL: "{{ .Values.valheim.saveInterval }}"
+            SERVER_BACKUPS: "{{ .Values.valheim.backups }}"
+            SERVER_BACKUP_SHORT: "{{ .Values.valheim.backupShort }}"
+            SERVER_BACKUP_LONG: "{{ .Values.valheim.backupLong }}"
+            SERVER_CROSSPLAY: "{{ .Values.valheim.crossplay }}"
+            SERVER_ADMINS: '{{ join " " .Values.valheim.administrators }}'
+            ADDITIONAL_ARGS: "{{ .Values.valheim.additionalArgs }}"
+          lifecycle:
+            preStop:
+              type: exec
+              command:
+                - /bin/sh
+                - -c
+                - kill -INT 1
+          probes:
+            liveness:
+              enabled: false
+            readiness:
+              enabled: false
+            startup:
+              enabled: false

@@ -1,0 +1,30 @@
+apiVersion: v2
+name: xestrata
+description: XeStrata - run Qwen3.8-Flash-Next (125B MoE) on Intel Arc, AMD Radeon, or NVIDIA GPUs with an OpenAI-compatible API
+type: application
+version: 0.1.1
+appVersion: "xe0.2.2-1"
+home: https://github.com/MistVVK/XeStrata
+keywords:
+  - xestrata
+  - strata
+  - llm
+  - inference
+  - openai
+  - intel
+  - sycl
+  - moe
+maintainers:
+  - name: dtandersen
+sources:
+  - https://github.com/MistVVK/XeStrata
+  - https://github.com/Niko1221/Strata
+dependencies:
+  - name: common
+    version: 29.14.2
+    repository: oci://oci.trueforge.org/truecharts
+    condition: ""
+    alias: ""
+    tags: []
+    import-values: []
+deprecated: false
