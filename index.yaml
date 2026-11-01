@@ -1,0 +1,176 @@
+apiVersion: v1
+entries:
+  hl2270dw-ipp-bridge:
+  - apiVersion: v2
+    appVersion: main
+    created: "2026-11-01T05:51:14.617027592Z"
+    dependencies:
+    - name: common
+      repository: oci://oci.trueforge.org/truecharts
+      version: 29.14.2
+    description: CUPS IPP-Everywhere bridge for the Brother HL-2270DW, so Windows
+      11 Protected Print mode can use it
+    digest: b57c9411f143c9ae7b39992ef7de0e2fd03b5818ba53afe38d72892871da5a65
+    home: https://github.com/dtandersen/dockerfiles/tree/main/images/hl2270dw-ipp-bridge
+    keywords:
+    - printer
+    - ipp
+    - cups
+    - brother
+    - windows-protected-print
+    maintainers:
+    - name: dtandersen
+    name: hl2270dw-ipp-bridge
+    sources:
+    - https://github.com/dtandersen/dockerfiles/tree/main/images/hl2270dw-ipp-bridge
+    type: application
+    urls:
+    - https://github.com/dtandersen/dockerfiles/releases/download/hl2270dw-ipp-bridge-0.1.1/hl2270dw-ipp-bridge-0.1.1.tgz
+    version: 0.1.1
+  netbird:
+  - apiVersion: v2
+    appVersion: 0.80.0
+    created: "2026-11-01T05:51:14.822648796Z"
+    description: NetBird in the cloud
+    digest: 89ae4bd6d3ccfeb802c4324ef2017d8da85f8529810d0d46c5057aad7d049393
+    name: netbird
+    type: application
+    urls:
+    - https://github.com/dtandersen/dockerfiles/releases/download/netbird-1.4.10/netbird-1.4.10.tgz
+    version: 1.4.10
+  remote-pi-relay:
+  - apiVersion: v2
+    appVersion: v0.3.1
+    created: "2026-11-01T05:51:14.989908261Z"
+    dependencies:
+    - name: common
+      repository: oci://oci.trueforge.org/truecharts
+      version: 29.14.2
+    description: Self-hosted WebSocket relay for Remote Pi (Pi agent mesh + mobile
+      control plane)
+    digest: 58ea2c97aff7a22da8cbb4bd1ef212a1c97a08c9907ba2707ab6504ca3d801f8
+    home: https://github.com/jacobaraujo7/remote_pi/tree/main/relay
+    keywords:
+    - remote-pi
+    - relay
+    - websocket
+    - pi
+    - agent-mesh
+    maintainers:
+    - name: dtandersen
+    name: remote-pi-relay
+    sources:
+    - https://github.com/jacobaraujo7/remote_pi/tree/main/relay
+    - https://hub.docker.com/r/jacobmoura7/remote-pi-relay
+    type: application
+    urls:
+    - https://github.com/dtandersen/dockerfiles/releases/download/remote-pi-relay-0.1.0/remote-pi-relay-0.1.0.tgz
+    version: 0.1.0
+  restic-rest-server:
+  - apiVersion: v2
+    appVersion: 1.16.0
+    created: "2026-11-01T05:51:15.191797698Z"
+    description: A Helm chart for Kubernetes
+    digest: 2c0cbf3cadefd55f5db4f14d28b93e38479d6735bbfec4b021cd0bd3268f1083
+    name: restic-rest-server
+    type: application
+    urls:
+    - https://github.com/dtandersen/dockerfiles/releases/download/restic-rest-server-0.1.5/restic-rest-server-0.1.5.tgz
+    version: 0.1.5
+  valheim:
+  - apiVersion: v2
+    appVersion: latest
+    created: "2026-11-01T05:51:15.411285996Z"
+    dependencies:
+    - name: common
+      repository: oci://oci.trueforge.org/truecharts
+      version: 29.14.2
+    description: Valheim dedicated server, installed and updated with SteamCMD
+    digest: 877efd8f8872fdf18d4b634af63f7c3208df1f3118a343087d260582a8c0a34e
+    home: https://valheim.com/support/a-guide-to-dedicated-servers/
+    keywords:
+    - valheim
+    - steamcmd
+    - game-server
+    maintainers:
+    - name: dtandersen
+    name: valheim
+    sources:
+    - https://github.com/dtandersen/valheim-docker
+    - https://developer.valvesoftware.com/wiki/SteamCMD
+    type: application
+    urls:
+    - https://github.com/dtandersen/dockerfiles/releases/download/valheim-0.1.0/valheim-0.1.0.tgz
+    version: 0.1.0
+  vllm:
+  - apiVersion: v2
+    appVersion: 0.27.1
+    created: "2026-11-01T05:51:15.571274401Z"
+    dependencies:
+    - name: common
+      repository: oci://oci.trueforge.org/truecharts
+      version: 29.14.2
+    description: vLLM - a fast and easy deployment framework for large language models,
+      exposing an OpenAI-compatible API
+    digest: d3e9f55e5a3fb09cd910a6710fff7d073e6ecd29273d05a9ff8ffc8431d69ad3
+    home: https://vllm.ai
+    keywords:
+    - vllm
+    - llm
+    - inference
+    - openai
+    - machine-learning
+    maintainers:
+    - name: dtandersen
+    name: vllm
+    sources:
+    - https://github.com/vllm-project/vllm
+    - https://hub.docker.com/r/vllm/vllm-openai
+    type: application
+    urls:
+    - https://github.com/dtandersen/dockerfiles/releases/download/vllm-0.1.0/vllm-0.1.0.tgz
+    version: 0.1.0
+  vllm-xe:
+  - apiVersion: v2
+    created: "2026-11-01T05:51:15.958176027Z"
+    description: vLLM deployment for Intel Xe GPUs
+    digest: 16f653638cb9287b0ff0e1d2dadec59113c3a2e40323a060fd3d12ee5a2a4bcf
+    maintainers:
+    - name: mfournioux
+    name: vllm-xe
+    type: application
+    urls:
+    - https://github.com/dtandersen/dockerfiles/releases/download/vllm-xe-0.0.7/vllm-xe-0.0.7.tgz
+    version: 0.0.7
+  xestrata:
+  - apiVersion: v2
+    appVersion: xe0.2.2-1
+    created: "2026-11-01T05:51:16.136894905Z"
+    dependencies:
+    - name: common
+      repository: oci://oci.trueforge.org/truecharts
+      version: 29.14.2
+    description: XeStrata - run Qwen3.8-Flash-Next (125B MoE) on Intel Arc, AMD Radeon,
+      or NVIDIA GPUs with an OpenAI-compatible API
+    digest: 04f03041d586350e8724fe6048165f5241f11a426f8dcf02b15103d04f504443
+    home: https://github.com/MistVVK/XeStrata
+    keywords:
+    - xestrata
+    - strata
+    - llm
+    - inference
+    - openai
+    - intel
+    - sycl
+    - moe
+    maintainers:
+    - name: dtandersen
+    name: xestrata
+    sources:
+    - https://github.com/MistVVK/XeStrata
+    - https://github.com/Niko1221/Strata
+    type: application
+    urls:
+    - https://github.com/dtandersen/dockerfiles/releases/download/xestrata-0.1.1/xestrata-0.1.1.tgz
+    version: 0.1.1
+generated: "2026-11-01T05:51:16.136904309Z"
