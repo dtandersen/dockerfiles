@@ -64,7 +64,7 @@ multicast never reaches the LAN. So:
 
 ## Kubernetes
 
-See `../printer/k8s.yaml` for a Namespace + Deployment + LoadBalancer
-example. Two caveats: the pod must route to the printer on TCP 9100, and
+Deploy with the `charts/hl2270dw-ipp-bridge` chart (Service is a LoadBalancer).
+Two caveats: the pod must route to the printer on TCP 9100, and
 Windows must reach the Service on TCP 631 (LoadBalancer/NodePort —
 ClusterIP alone is not enough). No mDNS through k8s, so add by URL.

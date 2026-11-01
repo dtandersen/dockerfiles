@@ -1,15 +1,26 @@
-# Builds xestrata-llvm and pushes it to GHCR. Tag pushes (e.g. xe0.1.43.1)
-# build that upstream version. After the first push make the ghcr package
-# public or the cluster cannot pull it.
+# Builds xestrata-llvm and pushes it to ghcr.io/dtandersen/xestrata-llvm.
+#
+# Tags: branch pushes publish the branch name (main). Release tags publish the
+# upstream ref and are named <image>-v<version>, e.g.
+# xestrata-llvm-vxe0.1.43.1; that release builds upstream
+# XESTRATA_REF=xe0.1.43.1 and publishes it as image tag xe0.1.43.1.
+#
+# The `v` separates image releases from chart releases, which chart-releaser
+# names <chart>-<version> (e.g. xestrata-0.1.1). A tag push also ignores
+# `paths:` filters, so the tag glob below is the only thing selecting this
+# workflow; without the image prefix a bare 0.5.0 would build every image here.
+#
+# After the first push make the ghcr package public or the cluster cannot pull
+# it.
 
 name: xestrata-llvm
 
 on:
   push:
     branches: ['**']
-    tags: ['[0-9]*']
+    tags: ['xestrata-llvm-v*']
     paths:
-      - xestrata-llvm/**
+      - images/xestrata-llvm/**
       - .github/workflows/xestrata-llvm.yaml
   workflow_dispatch:
 
@@ -28,9 +39,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set ref
-        run: echo "XESTRATA_REF=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-        if: startsWith(github.ref, 'refs/tags/')
+      # Release tags (xestrata-llvm-vxe0.1.43.1) build that upstream ref.
+      - name: Set ref from release tag
+        run: echo "XESTRATA_REF=${GITHUB_REF_NAME#xestrata-llvm-v}" >> $GITHUB_ENV
+        if: startsWith(github.ref, 'refs/tags/xestrata-llvm-v')
 
       - uses: docker/metadata-action@v5
         id: meta
@@ -38,7 +50,8 @@ jobs:
           images: ${{ env.IMAGE }}
           tags: |
             type=ref,event=branch
-            type=ref,event=tag
+            # Release tag xestrata-llvm-vxe0.1.43.1 -> image tag xe0.1.43.1.
+            type=match,pattern=xestrata-llvm-v(.*),group=1
             type=sha
 
       - uses: docker/login-action@v3
@@ -53,7 +66,7 @@ jobs:
 
       - uses: docker/build-push-action@v6
         with:
-          context: xestrata-llvm
+          context: images/xestrata-llvm
           push: true
           # 8G: GHA cache caps at 10 GB; 30G Dockerfile default is for local builds.
           build-args: |

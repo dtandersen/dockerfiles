@@ -1,8 +1,14 @@
 # Builds forgejo-runner and pushes it to GHCR.
 #
-# The image tag follows the push: branch name for branches (main), tag name
-# for tags. Push a version tag like 13.1.0 to release that runner version —
-# the tag doubles as RUNNER_VERSION. It must stay in lockstep with
+# Tags: branch pushes publish the branch name (main). Release tags publish the
+# upstream version and are named <image>-v<version>, e.g.
+# forgejo-runner-v13.1.0 — the version part doubles as RUNNER_VERSION. The `v`
+# keeps image releases apart from chart releases, which chart-releaser names
+# <chart>-<version> (e.g. forgejo-runner-0.1.0, from Chart.yaml).
+#
+# A tag push ignores `paths:` filters, so the tag glob below is the only thing
+# selecting this workflow. Without the image prefix a bare 13.1.0 would build
+# every image in this repo. Keep the tag in lockstep with
 # statefulset.runner.fullOverride in the helmfile
 # releases/forgejo-runner-dind/values.yaml — bump both together.
 #
@@ -16,17 +22,17 @@ name: forgejo-runner
 on:
   push:
     branches: [main]
-    tags: ['[0-9]*']
+    tags: ['forgejo-runner-v*']
     paths:
-      - forgejo-runner/**
+      - images/forgejo-runner/**
       - .github/workflows/forgejo-runner.yaml
   workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
   IMAGE: ghcr.io/dtandersen/forgejo-runner
-  # Upstream runner version for branch builds. Tag pushes override this
-  # with the tag name (see set-ref step).
+  # Upstream runner version for branch builds. Release tags override this with
+  # the version part of the tag (see the set-version step).
   RUNNER_VERSION: "13.1.0"
 
 jobs:
@@ -38,10 +44,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Version tags (13.1.0) build that runner version.
-      - name: Set ref
-        run: echo "RUNNER_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-        if: startsWith(github.ref, 'refs/tags/')
+      # Release tags (forgejo-runner-v13.1.0) build that runner version.
+      - name: Set version from release tag
+        run: echo "RUNNER_VERSION=${GITHUB_REF_NAME#forgejo-runner-v}" >> $GITHUB_ENV
+        if: startsWith(github.ref, 'refs/tags/forgejo-runner-v')
 
       - uses: docker/metadata-action@v5
         id: meta
@@ -49,7 +55,8 @@ jobs:
           images: ${{ env.IMAGE }}
           tags: |
             type=ref,event=branch
-            type=ref,event=tag
+            # Release tag forgejo-runner-v13.1.0 -> image tag 13.1.0.
+            type=match,pattern=forgejo-runner-v(.*),group=1
             # Fallback so manual dispatches (neither branch nor tag ref)
             # still produce a tag.
             type=sha
@@ -62,7 +69,7 @@ jobs:
 
       - uses: docker/build-push-action@v6
         with:
-          context: forgejo-runner
+          context: images/forgejo-runner
           push: true
           build-args: RUNNER_VERSION=${{ env.RUNNER_VERSION }}
           tags: ${{ steps.meta.outputs.tags }}

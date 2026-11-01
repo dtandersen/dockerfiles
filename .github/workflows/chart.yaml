@@ -8,8 +8,14 @@ name: Release Charts
 # (or back to .../charts if this repo is later renamed). Repo rename aside,
 # helm follows no redirects for repo indexes.
 #
-# Chart release tags are <chart>-<version> (e.g. xestrata-0.1.1), so they do
-# not match the image workflows' `tags: ['[0-9]*']` trigger.
+# This repo's Pages site must be set to "Deploy from a branch: gh-pages / (root)",
+# which is where chart-releaser pushes index.yaml and the chart packages. With
+# Pages set to "GitHub Actions" the index is never served.
+#
+# Chart release tags are <chart>-<version> (e.g. xestrata-0.1.1), which is why
+# image releases are tagged <image>-v<version> (e.g. xestrata-vxe0.2.2-1): the
+# `v` keeps the two tag namespaces from colliding, and each image workflow
+# listens only to its own prefix.
 
 on:
   push:
@@ -40,6 +46,21 @@ jobs:
         run: |
           git config user.name "$GITHUB_ACTOR"
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      # chart-releaser diffs the live index inside a worktree of origin/gh-pages
+      # and fails ("fatal: invalid reference: origin/gh-pages") when that branch
+      # does not exist yet — on the first release of a new repo, or after the
+      # pages branch is deleted. Create it once, empty, and let chart-releaser
+      # fill it in.
+      - name: Ensure gh-pages branch
+        run: |
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            echo "origin/gh-pages already exists."
+            exit 0
+          fi
+          echo "Creating an empty gh-pages branch."
+          commit=$(git commit-tree "$(git hash-object -t tree /dev/null)" -m "Initialize gh-pages")
+          git push origin "$commit:refs/heads/gh-pages"
 
       # Dependency packages (*.tgz) are not committed, so vendor them before
       # chart-releaser packages each chart.

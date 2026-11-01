@@ -2,7 +2,7 @@
 
 Helm chart for the Brother HL-2270DW CUPS IPP-Everywhere bridge, so
 Windows 11 Protected Print mode can use it. It deploys the
-[`hl2270dw-ipp-bridge`](https://github.com/dtandersen/dockerfiles/tree/main/hl2270dw-ipp-bridge)
+[`hl2270dw-ipp-bridge`](https://github.com/dtandersen/dockerfiles/tree/main/images/hl2270dw-ipp-bridge)
 image. It is built on the TrueCharts
 [`common`](https://truecharts.org/common/) library chart.
 

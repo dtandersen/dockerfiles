@@ -8,8 +8,7 @@
 # Rebuild tracking:
 #   docker build -t ghcr.io/dtandersen/hl2270dw-ipp-bridge:<tag> .
 #   docker push ghcr.io/dtandersen/hl2270dw-ipp-bridge:<tag>
-# then point image in the printer k8s manifest
-# ../printer/k8s.yaml at the new tag.
+# then bump image.tag and appVersion in charts/hl2270dw-ipp-bridge.
 ARG DEBIAN_RELEASE=trixie-slim
 FROM debian:${DEBIAN_RELEASE}
 

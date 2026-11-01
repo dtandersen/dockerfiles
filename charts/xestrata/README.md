@@ -12,7 +12,7 @@ in host RAM. The chart is modeled on the `llama-intel` chart: one replica,
 ## Image
 
 Upstream publishes `.deb`/`.rpm` packages only — there is **no upstream
-container image**. The image lives in the dockerfiles repo at `xestrata/`
+container image**. The image lives in the dockerfiles repo at `images/xestrata/`
 (`Dockerfile` + `entrypoint.sh`): Ubuntu 26.04 with upstream's prebuilt
 `contrib` package, checksum-verified against the release `SHA256SUMS`. There is
 no compile step, so `setup.py` finds the engine already built and the pod's

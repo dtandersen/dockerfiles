@@ -4,7 +4,7 @@ description: CUPS IPP-Everywhere bridge for the Brother HL-2270DW, so Windows 11
 type: application
 version: 0.1.1
 appVersion: "main"
-home: https://github.com/dtandersen/dockerfiles/tree/main/hl2270dw-ipp-bridge
+home: https://github.com/dtandersen/dockerfiles/tree/main/images/hl2270dw-ipp-bridge
 keywords:
   - printer
   - ipp
@@ -14,7 +14,7 @@ keywords:
 maintainers:
   - name: dtandersen
 sources:
-  - https://github.com/dtandersen/dockerfiles/tree/main/hl2270dw-ipp-bridge
+  - https://github.com/dtandersen/dockerfiles/tree/main/images/hl2270dw-ipp-bridge
 dependencies:
   - name: common
     version: 29.14.2

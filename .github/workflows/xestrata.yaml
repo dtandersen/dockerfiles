@@ -1,16 +1,27 @@
-# Builds xestrata and pushes it to GHCR. Tag pushes (e.g. xe0.2.2-1) release
-# that upstream version; keep release tags in lockstep with image.tag in
-# charts/xestrata/values.yaml and appVersion in charts/xestrata/Chart.yaml.
-# After the first push make the ghcr package public or the cluster cannot pull it.
+# Builds xestrata and pushes it to ghcr.io/dtandersen/xestrata.
+#
+# Tags: branch pushes publish the branch name (main). Release tags publish the
+# upstream ref and are named <image>-v<version>, e.g. xestrata-vxe0.2.2-1;
+# that release builds upstream XESTRATA_REF=xe0.2.2-1 and publishes it as
+# image tag xe0.2.2-1. Keep it in lockstep with appVersion in
+# charts/xestrata/Chart.yaml and image.tag in charts/xestrata/values.yaml.
+#
+# The `v` separates image releases from chart releases, which chart-releaser
+# names <chart>-<version> (e.g. xestrata-0.1.1). A tag push also ignores
+# `paths:` filters, so the tag glob below is the only thing selecting this
+# workflow; without the image prefix a bare 0.5.0 would build every image here.
+#
+# After the first push make the ghcr package public or the cluster cannot pull
+# it.
 
 name: xestrata
 
 on:
   push:
     branches: ['**']
-    tags: ['[0-9]*']
+    tags: ['xestrata-v*']
     paths:
-      - xestrata/**
+      - images/xestrata/**
       - .github/workflows/xestrata.yaml
   workflow_dispatch:
 
@@ -30,12 +41,13 @@ jobs:
 
       - name: Read Dockerfile defaults
         run: |
-          echo "XESTRATA_REF=$(grep -m1 '^ARG XESTRATA_REF=' xestrata/Dockerfile | cut -d= -f2)" >> $GITHUB_ENV
-          echo "XESTRATA_VARIANT=$(grep -m1 '^ARG XESTRATA_VARIANT=' xestrata/Dockerfile | cut -d= -f2)" >> $GITHUB_ENV
+          echo "XESTRATA_REF=$(grep -m1 '^ARG XESTRATA_REF=' images/xestrata/Dockerfile | cut -d= -f2)" >> $GITHUB_ENV
+          echo "XESTRATA_VARIANT=$(grep -m1 '^ARG XESTRATA_VARIANT=' images/xestrata/Dockerfile | cut -d= -f2)" >> $GITHUB_ENV
 
-      - name: Set ref
-        run: echo "XESTRATA_REF=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-        if: startsWith(github.ref, 'refs/tags/')
+      # Release tags (xestrata-vxe0.2.2-1) build that upstream ref.
+      - name: Set ref from release tag
+        run: echo "XESTRATA_REF=${GITHUB_REF_NAME#xestrata-v}" >> $GITHUB_ENV
+        if: startsWith(github.ref, 'refs/tags/xestrata-v')
 
       - uses: docker/metadata-action@v5
         id: meta
@@ -43,7 +55,8 @@ jobs:
           images: ${{ env.IMAGE }}
           tags: |
             type=ref,event=branch
-            type=ref,event=tag
+            # Release tag xestrata-vxe0.2.2-1 -> image tag xe0.2.2-1.
+            type=match,pattern=xestrata-v(.*),group=1
             type=sha
 
       - uses: docker/login-action@v3
@@ -58,7 +71,7 @@ jobs:
 
       - uses: docker/build-push-action@v6
         with:
-          context: xestrata
+          context: images/xestrata
           push: true
           build-args: |
             XESTRATA_REF=${{ env.XESTRATA_REF }}
