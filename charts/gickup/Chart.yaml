@@ -1,0 +1,27 @@
+apiVersion: v2
+name: gickup
+description: Scheduled Git repository backup and mirroring with gickup
+type: application
+version: 0.1.0
+appVersion: "0.10.47"
+home: https://github.com/cooperspencer/gickup
+keywords:
+  - gickup
+  - backup
+  - mirror
+  - git
+  - forgejo
+maintainers:
+  - name: dtandersen
+sources:
+  - https://github.com/cooperspencer/gickup
+  - https://hub.docker.com/r/buddyspencer/gickup
+dependencies:
+  - name: common
+    version: 29.14.2
+    repository: oci://oci.trueforge.org/truecharts
+    condition: ""
+    alias: ""
+    tags: []
+    import-values: []
+deprecated: false

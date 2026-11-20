@@ -20,6 +20,7 @@ Build one from the repo root, for example with
 
 ## Charts
 
+- [charts/gickup](charts/gickup/) — Scheduled Git repository backup/mirroring.
 - [charts/hl2270dw-ipp-bridge](charts/hl2270dw-ipp-bridge/) — IPP bridge deployment.
 - [charts/netbird](charts/netbird/) — NetBird (submodule: dtandersen/helm-netbird, `homelab` branch).
 - [charts/remote-pi-relay](charts/remote-pi-relay/) — pi remote relay.

@@ -1,0 +1,3 @@
+# NOTES.txt
+
+{{- include "tc.v1.common.lib.chart.notes" $ -}}

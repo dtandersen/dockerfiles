@@ -1,0 +1,82 @@
+# Default values for gickup.
+# One conf.yml drives the backup; Kubernetes owns the schedule, so do not set
+# `cron:` in the config itself. Config reference:
+# https://github.com/cooperspencer/gickup/blob/main/conf.example.yml
+
+gickup:
+  # Five-field cron schedule for the backup Job.
+  schedule: "0 3 * * *"
+  # IANA time zone for the backup schedule.
+  timeZone: "UTC"
+  # Name of an existing Secret with a `conf.yml` key. Preferred: keeps tokens
+  # out of Helm values. When set, gickup.config is ignored.
+  existingSecret: ""
+  # Inline conf.yml, rendered into a chart-managed Secret. Keep this free of
+  # credentials; use existingSecret for real configs.
+  config: ""
+
+image:
+  # Fully qualified: CRI-O on kube-ctrl1 has no short-name alias for docker.io.
+  repository: docker.io/buddyspencer/gickup
+  tag: "0.10.47"
+  pullPolicy: IfNotPresent
+
+# Backup jobs have no listener; suppress the common chart's default Service.
+service:
+  main:
+    enabled: false
+
+secret:
+  config:
+    enabled: "{{ if and (not .Values.gickup.existingSecret) .Values.gickup.config }}true{{ else }}false{{ end }}"
+    data:
+      conf.yml: "{{ .Values.gickup.config | trim }}"
+
+persistence:
+  config:
+    enabled: "{{ if or .Values.gickup.existingSecret .Values.gickup.config }}true{{ else }}false{{ end }}"
+    type: secret
+    objectName: "{{ .Values.gickup.existingSecret | default \"config\" }}"
+    expandObjectName: "{{ if .Values.gickup.existingSecret }}false{{ else }}true{{ end }}"
+    mountPath: /gickup/conf.yml
+    subPath: conf.yml
+    readOnly: true
+  # go-git and git-lfs use HOME for temp clones; keep the image root read-only.
+  tmp:
+    enabled: true
+    type: emptyDir
+    mountPath: /tmp
+  # Enable for `destination.local` and set that destination's path to /data.
+  data:
+    enabled: false
+    mountPath: /data
+
+workload:
+  main:
+    enabled: true
+    primary: true
+    type: CronJob
+    schedule: "{{ .Values.gickup.schedule }}"
+    timezone: "{{ .Values.gickup.timeZone }}"
+    concurrencyPolicy: Forbid
+    startingDeadlineSeconds: 600
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 1
+    backoffLimit: 2
+    ttlSecondsAfterFinished: 600
+    podSpec:
+      containers:
+        main:
+          enabled: true
+          primary: true
+          env:
+            HOME: /tmp
+          # A backup job has no listener; the common chart's HTTP probes would
+          # render with port 0 and be rejected by the API server.
+          probes:
+            liveness:
+              enabled: false
+            readiness:
+              enabled: false
+            startup:
+              enabled: false

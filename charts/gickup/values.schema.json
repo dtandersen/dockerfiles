@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dtandersen.github.io/dockerfiles/gickup/values.schema.json",
+  "title": "gickup",
+  "description": "Configuration for the gickup backup chart. In addition to the keys defined here, all values of the TrueCharts 'common' chart (service, workload, persistence, ...) are accepted - see https://truecharts.org/common/",
+  "type": "object",
+  "properties": {
+    "gickup": {
+      "type": "object",
+      "description": "Backup schedule and gickup.conf source.",
+      "properties": {
+        "schedule": {
+          "type": "string",
+          "description": "Five-field Kubernetes cron schedule. Do not set `cron:` in conf.yml.",
+          "minLength": 1
+        },
+        "timeZone": {
+          "type": "string",
+          "description": "IANA time zone for the schedule."
+        },
+        "existingSecret": {
+          "type": "string",
+          "description": "Existing Secret in the release namespace with a conf.yml key. Takes precedence over config."
+        },
+        "config": {
+          "type": "string",
+          "description": "Inline conf.yml content; rendered into a chart-managed Secret when existingSecret is empty. Avoid real credentials here."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
