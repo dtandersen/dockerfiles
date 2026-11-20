@@ -3,6 +3,32 @@ entries:
   gickup:
   - apiVersion: v2
     appVersion: 0.10.47
+    created: "2026-11-20T05:31:54.756173903Z"
+    dependencies:
+    - name: common
+      repository: oci://oci.trueforge.org/truecharts
+      version: 29.14.2
+    description: Scheduled Git repository backup and mirroring with gickup
+    digest: dc7035efdf63ff7e9ea94bd0e416ea3ac6484ae97402d74461e7886765451070
+    home: https://github.com/cooperspencer/gickup
+    keywords:
+    - gickup
+    - backup
+    - mirror
+    - git
+    - forgejo
+    maintainers:
+    - name: dtandersen
+    name: gickup
+    sources:
+    - https://github.com/cooperspencer/gickup
+    - https://hub.docker.com/r/buddyspencer/gickup
+    type: application
+    urls:
+    - https://github.com/dtandersen/dockerfiles/releases/download/gickup-0.1.1/gickup-0.1.1.tgz
+    version: 0.1.1
+  - apiVersion: v2
+    appVersion: 0.10.47
     created: "2026-11-20T05:12:46.703957053Z"
     dependencies:
     - name: common
@@ -200,4 +226,4 @@ entries:
     urls:
     - https://github.com/dtandersen/dockerfiles/releases/download/xestrata-0.1.1/xestrata-0.1.1.tgz
     version: 0.1.1
-generated: "2026-11-20T05:12:46.987605565Z"
+generated: "2026-11-20T05:31:54.756183397Z"
