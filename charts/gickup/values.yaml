@@ -8,12 +8,9 @@ gickup:
   schedule: "0 3 * * *"
   # IANA time zone for the backup schedule.
   timeZone: "UTC"
-  # Name of an existing Secret with a `conf.yml` key. Preferred: keeps tokens
-  # out of Helm values. When set, gickup.config is ignored.
-  existingSecret: ""
-  # Inline conf.yml, rendered into a chart-managed Secret. Keep this free of
-  # credentials; use existingSecret for real configs.
-  config: ""
+  # Name of an existing ConfigMap with a `conf.yml` key. Takes precedence over
+  # configmap.config.data.conf.yml.
+  existingConfigMap: ""
 
 image:
   # Fully qualified: CRI-O on kube-ctrl1 has no short-name alias for docker.io.
@@ -26,18 +23,20 @@ service:
   main:
     enabled: false
 
-secret:
+# The common chart renders configmap.config.data verbatim into a ConfigMap.
+# Keep credentials out of conf.yml; reference files mounted from a Secret.
+configmap:
   config:
-    enabled: "{{ if and (not .Values.gickup.existingSecret) .Values.gickup.config }}true{{ else }}false{{ end }}"
+    enabled: "{{ if and (not .Values.gickup.existingConfigMap) (index .Values.configmap.config.data `conf.yml`) }}true{{ else }}false{{ end }}"
     data:
-      conf.yml: "{{ .Values.gickup.config | trim }}"
+      conf.yml: ""
 
 persistence:
   config:
-    enabled: "{{ if or .Values.gickup.existingSecret .Values.gickup.config }}true{{ else }}false{{ end }}"
-    type: secret
-    objectName: "{{ .Values.gickup.existingSecret | default \"config\" }}"
-    expandObjectName: "{{ if .Values.gickup.existingSecret }}false{{ else }}true{{ end }}"
+    enabled: "{{ if or .Values.gickup.existingConfigMap (index .Values.configmap.config.data `conf.yml`) }}true{{ else }}false{{ end }}"
+    type: configmap
+    objectName: "{{ .Values.gickup.existingConfigMap | default \"config\" }}"
+    expandObjectName: "{{ if .Values.gickup.existingConfigMap }}false{{ else }}true{{ end }}"
     mountPath: /gickup/conf.yml
     subPath: conf.yml
     readOnly: true

@@ -7,16 +7,14 @@ CronJob using the upstream `buddyspencer/gickup` image and the TrueCharts
 
 ## Config
 
-gickup reads `/gickup/conf.yml` (the image's default argument) from a Secret.
-Create one in the release namespace, with the config under the `conf.yml` key:
+gickup reads `/gickup/conf.yml` (the image's default argument) from a
+ConfigMap. For an externally managed config, create one in the release
+namespace with the config under the `conf.yml` key and set
+`gickup.existingConfigMap` to its name.
 
-```sh
-kubectl create secret generic gickup-conf -n gickup --from-file=conf.yml=./conf.yml
-```
-
-Then set `gickup.existingSecret: gickup-conf`. `conf.yml` supports
-`token_file` and `sshkey`; use absolute paths (for example `/auth/token`) and
-mount a second Secret there via common values:
+Keep credentials out of `conf.yml`. Gickup supports `token_file` and `sshkey`;
+use absolute paths (for example `/auth/token`) and mount a Secret there via
+common values:
 
 ```yaml
 persistence:
@@ -31,8 +29,10 @@ persistence:
 
 Keep tokens out of chart values.
 
-`gickup.config` is an inline alternative for token-free configs: the chart
-renders it into its own Secret. `gickup.existingSecret` wins when both are set.
+For inline configs, set `configmap.config.data.conf.yml` in the release
+values. The common chart renders it verbatim as `conf.yml` in a
+`<release>-config` ConfigMap. `gickup.existingConfigMap` wins when both are
+set.
 See the [upstream config example](https://github.com/cooperspencer/gickup/blob/main/conf.example.yml)
 for sources, destinations, and filters.
 
@@ -45,8 +45,8 @@ makes gickup run its own daemon instead of exiting after one backup.
 | --- | --- | --- |
 | `gickup.schedule` | `0 3 * * *` | Five-field CronJob schedule |
 | `gickup.timeZone` | `UTC` | IANA schedule time zone |
-| `gickup.existingSecret` | `""` | Secret with `conf.yml` |
-| `gickup.config` | `""` | Inline `conf.yml` (no credentials) |
+| `gickup.existingConfigMap` | `""` | ConfigMap with `conf.yml` |
+| `configmap.config.data.conf.yml` | `""` | Inline `conf.yml` (no credentials) |
 | `image.repository` / `image.tag` | `docker.io/buddyspencer/gickup` / `0.10.47` | Upstream first-party image |
 
 Defaults are a single `CronJob` with `concurrencyPolicy: Forbid`, two retries,

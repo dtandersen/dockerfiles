@@ -18,15 +18,16 @@
           "type": "string",
           "description": "IANA time zone for the schedule."
         },
-        "existingSecret": {
+        "existingConfigMap": {
           "type": "string",
-          "description": "Existing Secret in the release namespace with a conf.yml key. Takes precedence over config."
-        },
-        "config": {
-          "type": "string",
-          "description": "Inline conf.yml content; rendered into a chart-managed Secret when existingSecret is empty. Avoid real credentials here."
+          "description": "Existing ConfigMap in the release namespace with a conf.yml key. Takes precedence over configmap.config.data.conf.yml."
         }
       },
+      "additionalProperties": true
+    },
+    "configmap": {
+      "type": "object",
+      "description": "Common-chart ConfigMap definitions. Set config.data.conf.yml for an inline, token-free gickup config; the common chart renders it verbatim into <release>-config.",
       "additionalProperties": true
     }
   },

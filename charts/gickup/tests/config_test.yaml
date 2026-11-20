@@ -1,0 +1,88 @@
+suite: gickup config ConfigMap
+release:
+  name: gickup
+  namespace: gickup
+templates:
+  - common.yaml
+tests:
+  - it: renders inline conf.yml verbatim, with real newlines
+    set:
+      configmap:
+        config:
+          data:
+            conf.yml: |-
+              source:
+                github:
+                  - app_id: 123456
+                    user: octocat
+
+              destination:
+                local:
+                  - path: /data
+    documentIndex: 0
+    asserts:
+      - isKind:
+          of: ConfigMap
+      - equal:
+          path: metadata.name
+          value: gickup-config
+      - equal:
+          path: data['conf.yml']
+          value: |-
+            source:
+              github:
+                - app_id: 123456
+                  user: octocat
+
+            destination:
+              local:
+                - path: /data
+
+  - it: mounts the chart-managed config ConfigMap at /gickup/conf.yml
+    set:
+      configmap:
+        config:
+          data:
+            conf.yml: |-
+              source: {}
+    documentIndex: 1
+    asserts:
+      - isKind:
+          of: CronJob
+      - contains:
+          path: spec.jobTemplate.spec.template.spec.volumes
+          content:
+            name: config
+            configMap:
+              name: gickup-config
+              optional: false
+      - contains:
+          path: spec.jobTemplate.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: config
+            mountPath: /gickup/conf.yml
+            subPath: conf.yml
+            readOnly: true
+
+  - it: gickup.existingConfigMap wins and no config ConfigMap is rendered
+    set:
+      gickup:
+        existingConfigMap: gickup-conf
+      configmap:
+        config:
+          data:
+            conf.yml: |-
+              source: {}
+    documentIndex: 0
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: CronJob
+      - contains:
+          path: spec.jobTemplate.spec.template.spec.volumes
+          content:
+            name: config
+            configMap:
+              name: gickup-conf
+              optional: false
